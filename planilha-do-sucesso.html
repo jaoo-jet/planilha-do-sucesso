@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planilha do Sucesso — Controle de Custos</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPssE8M_MWTCUmn25T7r9Amg1QGl8H73o",
+    authDomain: "planilha-do-sucesso.firebaseapp.com",
+    projectId: "planilha-do-sucesso",
+    storageBucket: "planilha-do-sucesso.firebasestorage.app",
+    messagingSenderId: "169736117257",
+    appId: "1:169736117257:web:9125e177119485a44eacd8"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const DOC_ID = "planilha-do-sucesso";
+  const firebaseConfigurado = !firebaseConfig.apiKey.includes("COLE_");
+  window.saveToFirebase = async function(dados) {
+    if (!firebaseConfigurado) { localStorage.setItem("planilha_dados", JSON.stringify(dados)); return; }
+    try { await setDoc(doc(db, "planilha", DOC_ID), dados); mostrarStatusSalvo(); }
+    catch(e) { localStorage.setItem("planilha_dados", JSON.stringify(dados)); }
+  };
+  window.loadFromFirebase = async function() {
+    if (!firebaseConfigurado) { const l=localStorage.getItem("planilha_dados"); return l?JSON.parse(l):null; }
+    try { const s=await getDoc(doc(db,"planilha",DOC_ID)); return s.exists()?s.data():null; }
+    catch(e) { const l=localStorage.getItem("planilha_dados"); return l?JSON.parse(l):null; }
+  };
+  window.firebaseConfigurado = firebaseConfigurado;
+  function mostrarStatusSalvo() {
+    const el=document.getElementById("status-salvo");
+    if(!el) return;
+    el.style.opacity="1";
+    clearTimeout(window._saveTimer);
+    window._saveTimer=setTimeout(()=>{el.style.opacity="0";},2500);
+  }
+  document.addEventListener("DOMContentLoaded", async () => {
+    const dados = await window.loadFromFirebase();
+    window._dadosIniciais = dados;
+    if (typeof window.initApp === "function") window.initApp(dados);
+  });
+</script>
+<style>
+  :root {
+    --bg: #0f0e0d;
+    --surface: #1a1917;
+    --surface2: #242220;
+    --border: #2e2c29;
+    --accent: #f5a623;
+    --accent2: #e8441a;
+    --green: #4caf82;
+    --red: #e8441a;
+    --text: #f0ede8;
+    --text2: #a09b93;
+    --text3: #6b6560;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; }
+  .logo span { color: var(--accent); }
+  nav { display: flex; gap: 0.25rem; }
+  nav button {
+    background: none; border: none; color: var(--text2); cursor: pointer;
+    padding: 0.5rem 1rem; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem; font-weight: 500; transition: all 0.15s;
+  }
+  nav button:hover { background: var(--surface2); color: var(--text); }
+  nav button.active { background: var(--accent); color: #000; font-weight: 600; }
+
+  /* MAIN */
+  .main { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  /* SECTION TITLE */
+  .section-header { margin-bottom: 2rem; }
+  .section-header h2 { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 700; }
+  .section-header p { color: var(--text2); font-size: 0.9rem; margin-top: 0.25rem; }
+
+  /* CARDS GRID */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+  .card-label { font-size: 0.78rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .card-value { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; }
+  .card-value.accent { color: var(--accent); }
+  .card-value.green { color: var(--green); }
+  .card-value.red { color: var(--red); }
+
+  /* PANEL */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .panel-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-header h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+  .panel-body { padding: 1.5rem; }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; padding: 0.5rem 0.75rem; color: var(--text3); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .badge {
+    display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 600;
+  }
+  .badge-green { background: rgba(76,175,130,0.15); color: var(--green); }
+  .badge-red { background: rgba(232,68,26,0.15); color: var(--red); }
+  .badge-orange { background: rgba(245,166,35,0.15); color: var(--accent); }
+
+  /* FORMS */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+  label { font-size: 0.8rem; color: var(--text2); font-weight: 500; }
+  input, select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 0.65rem 0.9rem; font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; transition: border-color 0.15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  select option { background: var(--surface); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 0.65rem 1.25rem; border-radius: 8px; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.88rem;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #f7b83a; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-danger { background: rgba(232,68,26,0.15); color: var(--red); border: 1px solid rgba(232,68,26,0.3); }
+  .btn-danger:hover { background: rgba(232,68,26,0.25); }
+  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+  /* RESULT BOX */
+  .result-box {
+    background: linear-gradient(135deg, rgba(245,166,35,0.08), rgba(232,68,26,0.05));
+    border: 1px solid rgba(245,166,35,0.25);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .result-box h4 { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--accent); margin-bottom: 1rem; }
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+  .result-item label { font-size: 0.75rem; color: var(--text3); }
+  .result-item .value { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; }
+
+  /* INGREDIENTS LIST */
+  .ing-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+  .ing-row {
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 0.75rem; align-items: center;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.6rem 0.75rem;
+  }
+  .ing-row span { font-size: 0.88rem; }
+  .ing-row .ing-name { font-weight: 500; }
+  .ing-row .ing-cost { color: var(--accent); font-weight: 600; }
+
+  /* PROGRESS BAR */
+  .progress-bar { background: var(--border); border-radius: 999px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 999px; transition: width 0.4s; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+  .tab-btn {
+    background: none; border: none; color: var(--text2); cursor: pointer;
+    padding: 0.75rem 1.25rem; font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* PAGE */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* SECTION DIVIDER */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 2rem; width: 90%; max-width: 580px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 1.5rem; }
+  .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .ing-row { grid-template-columns: 1fr 1fr; }
+    header { flex-wrap: wrap; height: auto; padding: 1rem; gap: 0.5rem; }
+    nav { flex-wrap: wrap; }
+  }
+
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.72rem; color: var(--text2); }
+
+  .empty-state { text-align: center; padding: 3rem; color: var(--text3); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 0.75rem; }
+
+  .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .flex-gap { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+  .highlight-row td { background: rgba(245,166,35,0.06) !important; }
+  .profit-positive { color: var(--green); }
+  .profit-negative { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Planilha do <span>Sucesso</span></div>
+  <nav>
+    <button class="active" onclick="showPage('dashboard')">Dashboard</button>
+    <button onclick="showPage('insumos')">Insumos</button>
+    <button onclick="showPage('fichas')">Fichas Técnicas</button>
+    <button onclick="showPage('precos')">Formação de Preço</button>
+    <button onclick="showPage('perda')">Cálculo de Perda</button>
+    <button onclick="showPage('despesas')">Desp × Fat</button>
+  </nav>
+  <div id="status-salvo" style="font-size:0.78rem;color:var(--green);opacity:0;transition:opacity 0.4s;display:flex;align-items:center;gap:0.35rem">✓ Salvo no servidor</div>
+  <div id="status-firebase" style="font-size:0.75rem;padding:0.25rem 0.65rem;border-radius:6px;background:rgba(232,68,26,0.15);color:var(--red);display:none">⚠️ Modo local</div>
+</header>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="section-header">
+      <h2>Dashboard</h2>
+      <p>Visão geral do seu negócio alimentício</p>
+    </div>
+    <div class="cards-grid" id="dash-cards">
+      <div class="card"><div class="card-label">Total de Insumos</div><div class="card-value accent" id="dash-total-insumos">0</div></div>
+      <div class="card"><div class="card-label">Fichas Técnicas</div><div class="card-value accent" id="dash-total-fichas">0</div></div>
+      <div class="card"><div class="card-label">Custo Fixo</div><div class="card-value" id="dash-custo-fixo">R$ 0</div></div>
+      <div class="card"><div class="card-label">Faturamento</div><div class="card-value" id="dash-fat">R$ 0</div></div>
+      <div class="card"><div class="card-label">% Custo Fixo/Fat</div><div class="card-value" id="dash-pct">0%</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>Fichas Técnicas — Rentabilidade</h3></div>
+      <div class="panel-body" style="padding:0">
+        <table>
+          <thead><tr><th>Produto</th><th>Custo</th><th>Preço Cardápio</th><th>Lucro R$</th><th>Lucro %</th><th>Status</th></tr></thead>
+          <tbody id="dash-table-body">
+            <tr><td colspan="6" class="empty-state" style="text-align:center; padding:2rem; color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSUMOS -->
+  <div class="page" id="page-insumos">
+    <div class="section-header flex-between">
+      <div>
+        <h2>Insumos</h2>
+        <p>Cadastro e preços dos ingredientes</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('modal-insumo')">+ Novo Insumo</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Lista de Insumos</h3>
+        <input type="text" placeholder="Buscar insumo..." style="width:220px;padding:0.4rem 0.75rem;font-size:0.85rem" oninput="filterInsumos(this.value)" id="search-insumo">
+      </div>
+      <div style="padding:0">
+        <table>
+          <thead><tr><th>Nome</th><th>Medida</th><th>Conversão</th><th>Valor/kg (Cru)</th><th>Perda?</th><th>Valor/kg (Cozido)</th><th>Valor/100g</th><th>Ações</th></tr></thead>
+          <tbody id="insumos-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FICHAS TÉCNICAS -->
+  <div class="page" id="page-fichas">
+    <div class="section-header flex-between">
+      <div>
+        <h2>Fichas Técnicas</h2>
+        <p>Composição de ingredientes por produto</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('modal-ficha')">+ Nova Ficha</button>
+    </div>
+
+    <div id="fichas-list"></div>
+  </div>
+
+  <!-- FORMAÇÃO DE PREÇO -->
+  <div class="page" id="page-precos">
+    <div class="section-header">
+      <h2>Formação de Preço</h2>
+      <p>Calcule o preço ideal para seus produtos</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem">
+      <div class="panel">
+        <div class="panel-header"><h3>Parâmetros de Precificação</h3></div>
+        <div class="panel-body">
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+              <label>Selecionar Ficha Técnica</label>
+              <select id="preco-select-ficha" onchange="updatePrecificacao()">
+                <option value="">— Selecione —</option>
+              </select>
+            </div>
+          </div>
+          <hr class="divider">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>% Produção (R$)</label>
+              <input type="number" id="preco-producao" value="20" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% Custo Fixo</label>
+              <input type="number" id="preco-fixo" value="30" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% Variável</label>
+              <input type="number" id="preco-variavel" value="10" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% Margem de Lucro</label>
+              <input type="number" id="preco-margem" value="40" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>Embalagem (R$)</label>
+              <input type="number" id="preco-embalagem" value="1.50" step="0.01" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% Taxa + Imposto</label>
+              <input type="number" id="preco-taxa" value="5" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% iFood (18%)</label>
+              <input type="number" id="preco-ifood18" value="18" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>% iFood (28%)</label>
+              <input type="number" id="preco-ifood28" value="28" step="1" min="0" max="100" oninput="calcPreco()">
+            </div>
+            <div class="form-group">
+              <label>Preço Cardápio (R$)</label>
+              <input type="number" id="preco-cardapio" value="0" step="0.01" oninput="calcPreco()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="result-box" id="result-preco">
+          <h4>Resultado da Precificação</h4>
+
+          <!-- tabela de breakdown -->
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(245,166,35,0.3)">
+                  <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text3);font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em">Componente</th>
+                  <th style="text-align:right;padding:0.4rem 0.5rem;color:var(--text3);font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em">Valor Unitário</th>
+                  <th style="text-align:right;padding:0.4rem 0.5rem;color:var(--text3);font-size:0.72rem;text-transform:uppercase;letter-spacing:.06em">% do Preço</th>
+                  <th style="padding:0.4rem 0.5rem;width:80px"></th>
+                </tr>
+              </thead>
+              <tbody id="res-breakdown-table"></tbody>
+            </table>
+          </div>
+
+          <hr class="divider">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">💰 Preço Sugerido</div>
+              <div id="res-preco-sugerido" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;color:var(--accent)">R$ 0,00</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">iFood 18%</div>
+              <div id="res-ifood18" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700">R$ 0,00</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">iFood 28%</div>
+              <div id="res-ifood28" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700">R$ 0,00</div>
+            </div>
+          </div>
+
+          <hr class="divider">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;align-items:center">
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Preço Cardápio</div>
+              <div id="res-preco-cardapio" style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800">R$ 0,00</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Lucro R$</div>
+              <div id="res-lucro-rs" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700">R$ 0,00</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Lucro %</div>
+              <div id="res-lucro-pct" style="font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700">0,0%</div>
+            </div>
+            <div>
+              <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.4rem">Status</div>
+              <div id="res-status-badge"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:1.5rem">
+          <div class="panel-header"><h3>Composição do Custo</h3></div>
+          <div class="panel-body" id="custo-breakdown"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CÁLCULO DE PERDA -->
+  <div class="page" id="page-perda">
+    <div class="section-header">
+      <h2>Cálculo de Perda na Produção</h2>
+      <p>Calcule o valor real por kg após cozimento e perdas</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem">
+      <div class="panel">
+        <div class="panel-header"><h3>Dados de Produção</h3></div>
+        <div class="panel-body">
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+              <label>Nome do Produto</label>
+              <input type="text" id="perda-nome" placeholder="Ex: Frango Desfiado">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Quantidade Comprada (kg)</label>
+              <input type="number" id="perda-kg-compra" value="10" step="0.1" oninput="calcPerda()">
+            </div>
+            <div class="form-group">
+              <label>Valor por kg Comprado (R$)</label>
+              <input type="number" id="perda-valor-kg" value="17" step="0.01" oninput="calcPerda()">
+            </div>
+            <div class="form-group">
+              <label>Peso após Cozimento (kg)</label>
+              <input type="number" id="perda-kg-cozido" value="6" step="0.1" oninput="calcPerda()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-box">
+        <h4>Resultado do Cálculo de Perda</h4>
+        <div class="result-grid">
+          <div class="result-item"><label>Total Investido (R$)</label><div class="value accent" id="perda-total">R$ 0,00</div></div>
+          <div class="result-item"><label>Perda (%)</label><div class="value red" id="perda-pct">0%</div></div>
+          <div class="result-item"><label>Perda (kg)</label><div class="value red" id="perda-kg-perdido">0 kg</div></div>
+          <div class="result-item"><label>Valor/kg Cozido (R$)</label><div class="value" id="perda-valor-cozido">R$ 0,00</div></div>
+          <div class="result-item"><label>Valor/100g Cozido</label><div class="value green" id="perda-valor-100g">R$ 0,00</div></div>
+        </div>
+        <hr class="divider">
+        <div style="margin-top:0.5rem">
+          <label style="font-size:0.8rem; color:var(--text3)">Perda Visual</label>
+          <div class="progress-bar" style="margin-top:0.5rem; height:12px">
+            <div class="progress-fill" id="perda-bar" style="background: linear-gradient(90deg, var(--red), var(--accent)); width:0%"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:1rem; width:100%" onclick="salvarPerda()">Salvar no Cadastro de Insumos</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:1.5rem">
+      <div class="panel-header flex-between"><h3>Histórico de Perdas Calculadas</h3><button class="btn btn-danger btn-sm" onclick="limparPerdas()">Limpar histórico</button></div>
+      <div style="padding:0">
+        <table>
+          <thead><tr><th>Produto</th><th>Kg Comprado</th><th>Valor/kg</th><th>Kg Cozido</th><th>Perda %</th><th>Valor/kg Cozido</th><th>Valor/100g</th><th></th></tr></thead>
+          <tbody id="perda-hist-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESPESAS vs FATURAMENTO -->
+  <div class="page" id="page-despesas">
+    <div class="section-header">
+      <h2>Despesas × Faturamento</h2>
+      <p>Descubra sua porcentagem de custo fixo sobre o faturamento</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem">
+      <div class="panel">
+        <div class="panel-header"><h3>Informações</h3></div>
+        <div class="panel-body">
+          <div class="form-grid" style="grid-template-columns:1fr">
+            <div class="form-group">
+              <label>Custo Fixo Total (R$)</label>
+              <input type="number" id="desp-fixo" value="10000" step="100" oninput="calcDespFat()">
+            </div>
+            <div class="form-group">
+              <label>Faturamento (R$)</label>
+              <input type="number" id="desp-fat" value="55000" step="100" oninput="calcDespFat()">
+            </div>
+          </div>
+          <hr class="divider">
+          <p style="font-size:0.85rem; color:var(--text2)">Fórmula: <strong style="color:var(--accent)">% = Despesas Fixas ÷ Faturamento</strong></p>
+          <p style="font-size:0.8rem; color:var(--text3); margin-top:0.5rem">Use esse percentual como o "Custo Fixo %" na formação de preço dos produtos.</p>
+        </div>
+      </div>
+
+      <div class="result-box">
+        <h4>Resultado</h4>
+        <div class="result-grid">
+          <div class="result-item"><label>% Custo Fixo / Faturamento</label><div class="value accent" style="font-size:3rem" id="desp-resultado">26,9%</div></div>
+        </div>
+        <hr class="divider">
+        <div style="margin-top:0.5rem">
+          <label style="font-size:0.8rem; color:var(--text3)">Proporção Custo Fixo</label>
+          <div class="progress-bar" style="margin-top:0.5rem; height:12px">
+            <div class="progress-fill" id="desp-bar" style="background: linear-gradient(90deg, var(--accent), var(--accent2)); width:27%"></div>
+          </div>
+          <p style="font-size:0.78rem; color:var(--text3); margin-top:0.5rem" id="desp-avaliacao">Custo fixo representando 26.9% do faturamento — dentro de um nível aceitável.</p>
+        </div>
+        <button class="btn btn-primary" style="margin-top:1rem" onclick="aplicarCustoFixo()">Aplicar nas Fichas Técnicas</button>
+      </div>
+    </div>
+
+    <!-- ITENS DE CUSTO FIXO -->
+    <div class="panel" style="margin-top:1.5rem">
+      <div class="panel-header flex-between">
+        <h3>Detalhamento do Custo Fixo</h3>
+        <button class="btn btn-secondary btn-sm" onclick="addItemCusto()">+ Adicionar Item</button>
+      </div>
+      <div style="padding:0">
+        <table>
+          <thead><tr><th>Item</th><th>Valor (R$)</th><th>% do Total</th><th></th></tr></thead>
+          <tbody id="custos-fixos-table"></tbody>
+        </table>
+      </div>
+      <div style="padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; justify-content:space-between">
+        <strong>TOTAL</strong>
+        <strong id="custos-fixos-total">R$ 0,00</strong>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- MODAL: NOVO INSUMO -->
+<div class="modal-overlay" id="modal-insumo">
+  <div class="modal">
+    <h3>Cadastrar Insumo</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome do Insumo</label>
+        <input type="text" id="in-nome" placeholder="Ex: Frango">
+      </div>
+      <div class="form-group">
+        <label>Medida</label>
+        <select id="in-medida">
+          <option>KG</option><option>UN</option><option>ML</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Conversão (g ou unidade)</label>
+        <input type="number" id="in-conversao" value="1000" placeholder="1000">
+      </div>
+      <div class="form-group">
+        <label>Valor por Kg / Unidade (R$)</label>
+        <input type="number" id="in-valor-kg" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Tem Perda no Cozimento?</label>
+        <select id="in-perda" onchange="togglePerdaFields()">
+          <option value="nao">Não</option>
+          <option value="sim">Sim</option>
+        </select>
+      </div>
+      <div class="form-group" id="perda-fields" style="display:none">
+        <label>Valor por Kg Cozido (R$)</label>
+        <input type="number" id="in-valor-cozido" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-insumo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarInsumo()">Salvar Insumo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA FICHA -->
+<div class="modal-overlay" id="modal-ficha">
+  <div class="modal" style="max-width:720px">
+    <h3>Nova Ficha Técnica</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome do Produto</label>
+        <input type="text" id="ficha-nome" placeholder="Ex: Pastel de Frango">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="ficha-categoria">
+          <option>Pastel</option><option>Pizza</option><option>Açaí</option>
+          <option>Lanche</option><option>Bebida</option><option>Outro</option>
+        </select>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="flex-between">
+      <strong style="font-size:0.9rem">Ingredientes</strong>
+      <button class="btn btn-secondary btn-sm" onclick="addIngredientRow()">+ Ingrediente</button>
+    </div>
+    <div id="ficha-ing-list" style="margin-top:0.75rem; display:flex; flex-direction:column; gap:0.5rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-ficha')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFicha()">Salvar Ficha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDITAR FICHA -->
+<div class="modal-overlay" id="modal-edit-ficha" onclick="if(event.target===this) this.classList.remove('active')">
+  <div class="modal" style="max-width:820px; width:95%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+      <h3 style="margin:0">✏️ Editar Ficha Técnica</h3>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('modal-edit-ficha').classList.remove('active')">✕ Fechar</button>
+    </div>
+
+    <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr">
+      <div class="form-group">
+        <label>Nome do Produto</label>
+        <input type="text" id="edit-ficha-nome" placeholder="Nome do produto">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="edit-ficha-categoria">
+          <option>Pastel</option><option>Pizza</option><option>Açaí</option>
+          <option>Lanche</option><option>Bebida</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Preço Cardápio (R$)</label>
+        <input type="number" id="edit-ficha-cardapio" step="0.01" placeholder="0,00" oninput="updateEditTotal()">
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="flex-between" style="margin-bottom:0.75rem">
+      <strong style="font-size:0.9rem">Ingredientes da Ficha</strong>
+      <div class="flex-gap">
+        <div style="font-size:0.85rem;color:var(--text2)">
+          Custo total: <strong style="color:var(--accent)" id="edit-total-custo">R$ 0,00</strong>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="addEditIngRow()">+ Adicionar Insumo</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:0.5rem;display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;padding:0 0.75rem">
+      <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Insumo</span>
+      <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Quantidade</span>
+      <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Custo</span>
+      <span></span>
+    </div>
+
+    <div id="edit-ing-list" style="max-height:360px;overflow-y:auto;padding-right:2px"></div>
+
+    <div class="modal-actions" style="margin-top:1.5rem">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-edit-ficha').classList.remove('active')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEditFicha()">💾 Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let state = {
+  insumos: [],
+  fichas: [],
+  perdas: [],
+  custosFixos: [],
+  editingFichaId: null
+};
+
+// ===================== INITIAL DATA (from spreadsheet) =====================
+const defaultInsumos = [
+  {id:1,  nome:'FRANGO',          medida:'KG', conversao:1000, valorKg:18,   temPerda:true,  valorKgCozido:30},
+  {id:2,  nome:'CARNE MOIDA',     medida:'KG', conversao:1000, valorKg:28,   temPerda:true,  valorKgCozido:40},
+  {id:3,  nome:'CARNE DE SOL',    medida:'KG', conversao:1000, valorKg:38,   temPerda:true,  valorKgCozido:69.091},
+  {id:4,  nome:'CAMARÃO',         medida:'KG', conversao:1000, valorKg:40,   temPerda:true,  valorKgCozido:105},
+  {id:5,  nome:'BACON',           medida:'KG', conversao:1000, valorKg:24,   temPerda:true,  valorKgCozido:50},
+  {id:6,  nome:'CALABRESA',       medida:'KG', conversao:1000, valorKg:20,   temPerda:true,  valorKgCozido:20.78},
+  {id:7,  nome:'COSTELA',         medida:'KG', conversao:1000, valorKg:30,   temPerda:true,  valorKgCozido:44.118},
+  {id:8,  nome:'QUEIJO',          medida:'KG', conversao:1000, valorKg:34,   temPerda:false, valorKgCozido:34},
+  {id:9,  nome:'PRESUNTO',        medida:'KG', conversao:1000, valorKg:16,   temPerda:false, valorKgCozido:16},
+  {id:10, nome:'AZEITONA',        medida:'KG', conversao:2000, valorKg:45,   temPerda:false, valorKgCozido:45},
+  {id:11, nome:'MASSA',           medida:'UN', conversao:50,   valorKg:36,   temPerda:false, valorKgCozido:36},
+  {id:12, nome:'CREAM CHEESE',    medida:'KG', conversao:1500, valorKg:42,   temPerda:false, valorKgCozido:42},
+  {id:13, nome:'OVO',             medida:'UN', conversao:30,   valorKg:20,   temPerda:false, valorKgCozido:20},
+  {id:14, nome:'CHEDDAR',         medida:'KG', conversao:1500, valorKg:48,   temPerda:false, valorKgCozido:48},
+  {id:15, nome:'CATUPIRY',        medida:'KG', conversao:1500, valorKg:64,   temPerda:false, valorKgCozido:64},
+  {id:16, nome:'PALMITO',         medida:'KG', conversao:1800, valorKg:33,   temPerda:false, valorKgCozido:33},
+  {id:17, nome:'TOMATE',          medida:'KG', conversao:1000, valorKg:8,    temPerda:false, valorKgCozido:8},
+  {id:18, nome:'QUEIJO E PRESUNTO',medida:'KG',conversao:1000, valorKg:22,   temPerda:false, valorKgCozido:22},
+  {id:19, nome:'MANJERICÃO',      medida:'KG', conversao:1000, valorKg:8,    temPerda:false, valorKgCozido:8},
+  {id:20, nome:'OREGANO',         medida:'KG', conversao:1000, valorKg:8,    temPerda:false, valorKgCozido:8},
+  {id:21, nome:'PEPPERONY',       medida:'KG', conversao:1000, valorKg:70,   temPerda:false, valorKgCozido:70},
+  {id:22, nome:'CHEIRO VERDE',    medida:'KG', conversao:1000, valorKg:8,    temPerda:false, valorKgCozido:8},
+  {id:23, nome:'QUEIJO CHEDDAR',  medida:'KG', conversao:1000, valorKg:30,   temPerda:false, valorKgCozido:30},
+  {id:24, nome:'MILHO',           medida:'KG', conversao:1700, valorKg:29,   temPerda:false, valorKgCozido:37},
+  {id:25, nome:'MOLHO TOMATE',    medida:'KG', conversao:1000, valorKg:50,   temPerda:false, valorKgCozido:50},
+  {id:26, nome:'MASSA DE PIZZA',  medida:'UN', conversao:10,   valorKg:10,   temPerda:false, valorKgCozido:10},
+  {id:27, nome:'CEBOLA',          medida:'KG', conversao:1000, valorKg:6,    temPerda:false, valorKgCozido:6},
+  {id:28, nome:'CHOCOLATE',       medida:'KG', conversao:1000, valorKg:32,   temPerda:false, valorKgCozido:26},
+  {id:29, nome:'GELEIA',          medida:'KG', conversao:1000, valorKg:20,   temPerda:false, valorKgCozido:20},
+  {id:30, nome:'AÇAI',            medida:'KG', conversao:1000, valorKg:17.5, temPerda:false, valorKgCozido:19.5},
+  {id:31, nome:'LEITE EM PO',     medida:'KG', conversao:1000, valorKg:26,   temPerda:false, valorKgCozido:26},
+  {id:32, nome:'GRANOLA',         medida:'KG', conversao:1000, valorKg:14,   temPerda:false, valorKgCozido:14},
+  {id:33, nome:'MORANGO',         medida:'KG', conversao:1000, valorKg:34,   temPerda:false, valorKgCozido:34},
+  {id:34, nome:'LEITE COND.',     medida:'KG', conversao:395,  valorKg:4.25, temPerda:false, valorKgCozido:4.25},
+  {id:35, nome:'CASTANHA',        medida:'KG', conversao:1000, valorKg:35,   temPerda:false, valorKgCozido:32},
+  {id:36, nome:'MOIDA INATURA',   medida:'KG', conversao:1000, valorKg:28,   temPerda:false, valorKgCozido:28},
+  {id:37, nome:'PIMENTA DE CHEIRO',medida:'KG',conversao:1000, valorKg:5,    temPerda:false, valorKgCozido:5},
+  {id:38, nome:'SAL TEMP.',       medida:'KG', conversao:1000, valorKg:3.2,  temPerda:false, valorKgCozido:1.6},
+  {id:39, nome:'COLORAL',         medida:'KG', conversao:1000, valorKg:9,    temPerda:false, valorKgCozido:9},
+  {id:40, nome:'ALHO',            medida:'KG', conversao:1000, valorKg:28,   temPerda:false, valorKgCozido:28},
+  {id:41, nome:'KIT KAT',         medida:'UN', conversao:1,    valorKg:3.39, temPerda:false, valorKgCozido:3.39},
+  {id:42, nome:'NUTELLA',         medida:'KG', conversao:1000, valorKg:55,   temPerda:false, valorKgCozido:55},
+  {id:43, nome:'PAO HOT DOG',     medida:'UN', conversao:1,    valorKg:1,    temPerda:false, valorKgCozido:1},
+  {id:44, nome:'SALSICHA',        medida:'KG', conversao:1000, valorKg:25,   temPerda:false, valorKgCozido:25},
+];
+
+const defaultFichas = [
+  {id:1,  nome:'CARNE',               categoria:'Pastel',   precoCardapio:11,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:2,qtdG:100}]},
+  {id:2,  nome:'CARNE QUEIJO',         categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:2,qtdG:70},{insumoId:15,qtdG:60}]},
+  {id:3,  nome:'FRANGO',              categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:1,qtdG:100}]},
+  {id:4,  nome:'FRANGO QUEIJO',        categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:1,qtdG:80},{insumoId:8,qtdG:60},{insumoId:5,qtdG:30}]},
+  {id:5,  nome:'FRANGO CATUPIRY',      categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:1,qtdG:80},{insumoId:15,qtdG:60},{insumoId:11,qtdG:1}]},
+  {id:6,  nome:'CALABRESA PURA',       categoria:'Pastel',   precoCardapio:11,   ingredientes:[{insumoId:6,qtdG:100},{insumoId:11,qtdG:1}]},
+  {id:7,  nome:'CALABRESA QUEIJO',     categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:6,qtdG:80},{insumoId:8,qtdG:60}]},
+  {id:8,  nome:'CALABRESA CATUPIRY',   categoria:'Pastel',   precoCardapio:12,   ingredientes:[{insumoId:11,qtdG:1},{insumoId:6,qtdG:80},{insumoId:15,qtdG:60}]},
+  {id:9,  nome:'MIX FRANGO',           categoria:'Pastel Kids', precoCardapio:19.9, ingredientes:[{insumoId:1,qtdG:80},{insumoId:8,qtdG:50},{insumoId:6,qtdG:40},{insumoId:24,qtdG:25},{insumoId:10,qtdG:25},{insumoId:11,qtdG:2}]},
+  {id:10, nome:'ESTOURADO DE FRANGO',  categoria:'Pastel Kids', precoCardapio:24.9, ingredientes:[{insumoId:1,qtdG:80},{insumoId:8,qtdG:50},{insumoId:6,qtdG:60},{insumoId:24,qtdG:50},{insumoId:5,qtdG:40},{insumoId:13,qtdG:1},{insumoId:11,qtdG:2}]},
+  {id:11, nome:'EXAGERADO DE FRANGO',  categoria:'Pastel Kids', precoCardapio:22.9, ingredientes:[{insumoId:1,qtdG:100},{insumoId:8,qtdG:60},{insumoId:6,qtdG:60},{insumoId:24,qtdG:50},{insumoId:10,qtdG:50},{insumoId:5,qtdG:40},{insumoId:11,qtdG:2}]},
+  {id:12, nome:'FRAMBACON',            categoria:'Pastel Kids', precoCardapio:16.9, ingredientes:[{insumoId:1,qtdG:100},{insumoId:8,qtdG:50},{insumoId:5,qtdG:30},{insumoId:24,qtdG:30},{insumoId:11,qtdG:2}]},
+  {id:13, nome:'PIZZA CALABRESA',      categoria:'Pizza',    precoCardapio:34,   ingredientes:[{insumoId:26,qtdG:1},{insumoId:25,qtdG:100},{insumoId:6,qtdG:100},{insumoId:24,qtdG:10},{insumoId:10,qtdG:20},{insumoId:27,qtdG:40},{insumoId:20,qtdG:5}]},
+  {id:14, nome:'PIZZA MUSSARELA',      categoria:'Pizza',    precoCardapio:39.9, ingredientes:[{insumoId:26,qtdG:1},{insumoId:8,qtdG:300},{insumoId:25,qtdG:50},{insumoId:17,qtdG:60},{insumoId:20,qtdG:5},{insumoId:10,qtdG:30}]},
+  {id:15, nome:'PIZZA FRANGO CATUPIRY',categoria:'Pizza',    precoCardapio:49.9, ingredientes:[{insumoId:1,qtdG:300},{insumoId:25,qtdG:50},{insumoId:15,qtdG:150},{insumoId:20,qtdG:5},{insumoId:26,qtdG:1}]},
+  {id:16, nome:'PIZZA CARNE DE SOL',   categoria:'Pizza',    precoCardapio:39.9, ingredientes:[{insumoId:3,qtdG:120},{insumoId:24,qtdG:30},{insumoId:20,qtdG:2},{insumoId:26,qtdG:1}]},
+];
+
+const defaultCustosFixos = [
+  {id:1, nome:'Aluguel',     valor:3500},
+  {id:2, nome:'Energia',     valor:1200},
+  {id:3, nome:'Água',        valor:300},
+  {id:4, nome:'Mão de Obra', valor:4000},
+  {id:5, nome:'Internet',    valor:200},
+  {id:6, nome:'Limpeza',     valor:300},
+  {id:7, nome:'Contador',    valor:500},
+];
+
+// ===================== INIT =====================
+const defaultPerdas = [
+  { nome: 'FRANGO (Filé de Peito)',     kgCompra: 60,  valorKg: 18,   kgCozido: 36,  perdaKg: 24,   perdaPct: 0.4,    valorKgCozido: 30,     valor100g: 3.0   },
+  { nome: 'CARNE MOIDA',               kgCompra: 70,  valorKg: 28,   kgCozido: 49,  perdaKg: 21,   perdaPct: 0.3,    valorKgCozido: 40,     valor100g: 4.0   },
+  { nome: 'CARNE DE SOL / CARNE SECA', kgCompra: 20,  valorKg: 38,   kgCozido: 11,  perdaKg: 9,    perdaPct: 0.45,   valorKgCozido: 69.091, valor100g: 6.909 },
+  { nome: 'CAMARÃO (Filé)',            kgCompra: 15,  valorKg: 35,   kgCozido: 5,   perdaKg: 10,   perdaPct: 0.6667, valorKgCozido: 105,    valor100g: 10.5  },
+  { nome: 'CALABRESA',                 kgCompra: 1,   valorKg: 19,   kgCozido: 0.9, perdaKg: 0.1,  perdaPct: 0.1,    valorKgCozido: 21.111, valor100g: 2.111 },
+  { nome: 'BACON',                     kgCompra: 1,   valorKg: 30,   kgCozido: 0.6, perdaKg: 0.4,  perdaPct: 0.4,    valorKgCozido: 50,     valor100g: 5.0   },
+  { nome: 'COSTELA (Blend)',           kgCompra: 1,   valorKg: 30,   kgCozido: 0.68,perdaKg: 0.32, perdaPct: 0.32,   valorKgCozido: 44.118, valor100g: 4.412 },
+];
+
+// initApp é chamado pelo módulo Firebase após carregar os dados
+window.initApp = function(dadosFirebase) {
+  if (dadosFirebase) {
+    state.insumos     = dadosFirebase.insumos     || defaultInsumos;
+    state.fichas      = dadosFirebase.fichas      || defaultFichas;
+    state.perdas      = dadosFirebase.perdas      || defaultPerdas;
+    state.custosFixos = dadosFirebase.custosFixos || defaultCustosFixos;
+  } else {
+    state.insumos     = defaultInsumos;
+    state.fichas      = defaultFichas;
+    state.perdas      = defaultPerdas;
+    state.custosFixos = defaultCustosFixos;
+  }
+  // Mostrar aviso se Firebase não configurado
+  if (!window.firebaseConfigurado) {
+    const el = document.getElementById('status-firebase');
+    if (el) el.style.display = 'block';
+  }
+  renderAll();
+  calcPerda();
+  calcDespFat();
+}
+
+function init() {
+  // Fallback caso o módulo Firebase ainda não tenha carregado
+  if (window._dadosIniciais !== undefined) {
+    window.initApp(window._dadosIniciais);
+  }
+  // Se _dadosIniciais ainda não definido, o DOMContentLoaded do módulo vai chamar initApp
+}
+
+function save() {
+  const dados = {
+    insumos: state.insumos,
+    fichas: state.fichas,
+    perdas: state.perdas,
+    custosFixos: state.custosFixos
+  };
+  if (typeof window.saveToFirebase === 'function') {
+    window.saveToFirebase(dados);
+  } else {
+    localStorage.setItem('planilha_dados', JSON.stringify(dados));
+  }
+}
+
+function renderAll() {
+  renderInsumos();
+  renderFichas();
+  renderDashboard();
+  renderPerdaHist();
+  renderCustosFixos();
+  populateFichaSelects();
+}
+
+// ===================== NAVIGATION =====================
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelector('#page-'+p).classList.add('active');
+  document.querySelectorAll('nav button').forEach((b, i) => {
+    const pages = ['dashboard','insumos','fichas','precos','perda','despesas'];
+    b.classList.toggle('active', pages[i] === p);
+  });
+}
+
+// ===================== MODALS =====================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  if(id === 'modal-ficha') {
+    document.getElementById('ficha-ing-list').innerHTML = '';
+    addIngredientRow();
+  }
+}
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ===================== UTILS =====================
+function fmt(v) { return 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function pct(v) { return ((v||0)*100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
+
+function getValorGrama(insumo) {
+  // valor por grama = valorKgCozido / conversao
+  return insumo.valorKgCozido / insumo.conversao;
+}
+
+function calcCustoFicha(ficha) {
+  return ficha.ingredientes.reduce((sum, ing) => {
+    const insumo = state.insumos.find(i => i.id === ing.insumoId);
+    if (!insumo) return sum;
+    return sum + getValorGrama(insumo) * ing.qtdG;
+  }, 0);
+}
+
+// ===================== INSUMOS =====================
+function renderInsumos(filter='') {
+  const tbody = document.getElementById('insumos-table-body');
+  const filtered = state.insumos.filter(i => i.nome.toLowerCase().includes(filter.toLowerCase()));
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum insumo encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(ins => {
+    const valorGr = (ins.valorKgCozido / ins.conversao).toFixed(4);
+    return `<tr>
+      <td><strong>${ins.nome}</strong></td>
+      <td>${ins.medida}</td>
+      <td>${ins.conversao}${ins.medida === 'UN' ? 'un' : ins.medida === 'ML' ? 'ml' : 'g'}</td>
+      <td>${fmt(ins.valorKg)}</td>
+      <td><span class="badge ${ins.temPerda ? 'badge-orange' : 'badge-green'}">${ins.temPerda ? 'Sim' : 'Não'}</span></td>
+      <td>${fmt(ins.valorKgCozido)}</td>
+      <td class="accent" style="color:var(--accent);font-weight:600">${fmt(parseFloat(valorGr))}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editInsumo(${ins.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteInsumo(${ins.id})">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterInsumos(v) { renderInsumos(v); }
+
+function togglePerdaFields() {
+  const v = document.getElementById('in-perda').value;
+  document.getElementById('perda-fields').style.display = v === 'sim' ? 'block' : 'none';
+}
+
+function salvarInsumo() {
+  const nome = document.getElementById('in-nome').value.trim().toUpperCase();
+  const medida = document.getElementById('in-medida').value;
+  const conversao = parseFloat(document.getElementById('in-conversao').value)||1000;
+  const valorKg = parseFloat(document.getElementById('in-valor-kg').value)||0;
+  const temPerda = document.getElementById('in-perda').value === 'sim';
+  let valorKgCozido = parseFloat(document.getElementById('in-valor-cozido').value)||valorKg;
+  if (!temPerda) valorKgCozido = valorKg;
+  if (!nome) return alert('Informe o nome do insumo');
+  const newId = Math.max(...state.insumos.map(i => i.id), 0) + 1;
+  state.insumos.push({id:newId, nome, medida, conversao, valorKg, temPerda, valorKgCozido});
+  save(); renderAll();
+  closeModal('modal-insumo');
+  document.getElementById('in-nome').value = '';
+}
+
+function editInsumo(id) {
+  const ins = state.insumos.find(i => i.id === id);
+  if (!ins) return;
+  document.getElementById('in-nome').value = ins.nome;
+  const medidaNorm = {'Kg':'KG','kg':'KG','KG':'KG','Unidade':'UN','unidade':'UN','UND':'UN','und':'UN','UN':'UN','ML':'ML','ml':'ML'}[ins.medida] || 'KG';
+  document.getElementById('in-medida').value = medidaNorm;
+  document.getElementById('in-conversao').value = ins.conversao;
+  document.getElementById('in-valor-kg').value = ins.valorKg;
+  document.getElementById('in-perda').value = ins.temPerda ? 'sim' : 'nao';
+  document.getElementById('in-valor-cozido').value = ins.valorKgCozido;
+  togglePerdaFields();
+  // remove old and save new
+  state.insumos = state.insumos.filter(i => i.id !== id);
+  save();
+  openModal('modal-insumo');
+}
+
+function deleteInsumo(id) {
+  if (!confirm('Remover insumo?')) return;
+  state.insumos = state.insumos.filter(i => i.id !== id);
+  save(); renderAll();
+}
+
+// ===================== FICHAS TÉCNICAS =====================
+function populateFichaSelects() {
+  const sel = document.getElementById('preco-select-ficha');
+  sel.innerHTML = '<option value="">— Selecione —</option>' +
+    state.fichas.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+}
+
+let ingRowCount = 0;
+function addIngredientRow() {
+  ingRowCount++;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr auto;gap:0.5rem;align-items:center';
+  div.innerHTML = `
+    <select class="ing-select" style="width:100%">
+      <option value="">— Insumo —</option>
+      ${state.insumos.map(i => `<option value="${i.id}">${i.nome}</option>`).join('')}
+    </select>
+    <input type="number" class="ing-qtd" placeholder="Qtd (g/un)" value="100" style="width:100%">
+    <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">×</button>
+  `;
+  document.getElementById('ficha-ing-list').appendChild(div);
+}
+
+function salvarFicha() {
+  const nome = document.getElementById('ficha-nome').value.trim().toUpperCase();
+  const categoria = document.getElementById('ficha-categoria').value;
+  if (!nome) return alert('Informe o nome do produto');
+  const rows = document.querySelectorAll('#ficha-ing-list > div');
+  const ingredientes = [];
+  rows.forEach(row => {
+    const insumoId = parseInt(row.querySelector('.ing-select').value);
+    const qtdG = parseFloat(row.querySelector('.ing-qtd').value)||0;
+    if (insumoId && qtdG > 0) ingredientes.push({insumoId, qtdG});
+  });
+  if (!ingredientes.length) return alert('Adicione ao menos um ingrediente');
+  const newId = Math.max(...state.fichas.map(f => f.id), 0) + 1;
+  state.fichas.push({id:newId, nome, categoria, ingredientes, precoCardapio:0});
+  save(); renderAll();
+  closeModal('modal-ficha');
+  document.getElementById('ficha-nome').value = '';
+}
+
+function deleteFicha(id) {
+  if (!confirm('Remover ficha?')) return;
+  state.fichas = state.fichas.filter(f => f.id !== id);
+  save(); renderAll();
+}
+
+// ---- INLINE EDIT FICHA ----
+function openEditFicha(id) {
+  const ficha = state.fichas.find(f => f.id === id);
+  if (!ficha) return;
+  state.editingFichaId = id;
+
+  // Fill modal fields
+  document.getElementById('edit-ficha-nome').value = ficha.nome;
+  document.getElementById('edit-ficha-categoria').value = ficha.categoria;
+  document.getElementById('edit-ficha-cardapio').value = ficha.precoCardapio || 0;
+
+  // Render ingredient rows
+  renderEditIngList(ficha.ingredientes);
+  document.getElementById('modal-edit-ficha').classList.add('active');
+}
+
+function renderEditIngList(ingredientes) {
+  const container = document.getElementById('edit-ing-list');
+  container.innerHTML = '';
+  ingredientes.forEach((ing, idx) => {
+    addEditIngRow(ing.insumoId, ing.qtdG);
+  });
+}
+
+function addEditIngRow(selectedId = '', qtd = 100) {
+  const container = document.getElementById('edit-ing-list');
+  const div = document.createElement('div');
+  div.className = 'edit-ing-row';
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.5rem';
+  
+  const insumo = selectedId ? state.insumos.find(i => i.id === parseInt(selectedId)) : null;
+  const valorGrama = insumo ? getValorGrama(insumo) : 0;
+  const custoIng = insumo ? valorGrama * qtd : 0;
+  const unidade = insumo ? (insumo.medida === 'UN' ? 'un' : insumo.medida === 'ML' ? 'ml' : 'g') : 'g';
+
+  div.innerHTML = `
+    <select class="edit-ing-select" onchange="onEditIngChange(this)" style="width:100%">
+      <option value="">— Selecione o Insumo —</option>
+      ${state.insumos.map(i => `<option value="${i.id}" ${i.id == selectedId ? 'selected' : ''}>${i.nome}</option>`).join('')}
+    </select>
+    <div style="display:flex;gap:0.3rem;align-items:center">
+      <input type="number" class="edit-ing-qtd" value="${qtd}" min="0" step="1" style="width:100%" oninput="onEditIngChange(this.closest('.edit-ing-row').querySelector('.edit-ing-select'))">
+      <span class="edit-ing-unit" style="font-size:0.78rem;color:var(--text3);min-width:18px">${unidade}</span>
+    </div>
+    <span class="edit-ing-custo" style="color:var(--accent);font-weight:600;font-size:0.9rem">${fmt(custoIng)}</span>
+    <button class="btn btn-danger btn-sm" onclick="removeEditIngRow(this)" title="Remover">×</button>
+  `;
+  container.appendChild(div);
+  updateEditTotal();
+}
+
+function onEditIngChange(sel) {
+  const row = sel.closest('.edit-ing-row');
+  const insumoId = parseInt(row.querySelector('.edit-ing-select').value);
+  const qtd = parseFloat(row.querySelector('.edit-ing-qtd').value)||0;
+  const insumo = state.insumos.find(i => i.id === insumoId);
+  const custoIng = insumo ? getValorGrama(insumo) * qtd : 0;
+  const unidade = insumo ? (insumo.medida === 'UN' ? 'un' : insumo.medida === 'ML' ? 'ml' : 'g') : 'g';
+  row.querySelector('.edit-ing-custo').textContent = fmt(custoIng);
+  row.querySelector('.edit-ing-unit').textContent = unidade;
+  updateEditTotal();
+}
+
+function removeEditIngRow(btn) {
+  btn.closest('.edit-ing-row').remove();
+  updateEditTotal();
+}
+
+function updateEditTotal() {
+  const rows = document.querySelectorAll('#edit-ing-list .edit-ing-row');
+  let total = 0;
+  rows.forEach(row => {
+    const insumoId = parseInt(row.querySelector('.edit-ing-select').value);
+    const qtd = parseFloat(row.querySelector('.edit-ing-qtd').value)||0;
+    const insumo = state.insumos.find(i => i.id === insumoId);
+    if (insumo) total += getValorGrama(insumo) * qtd;
+  });
+  const el = document.getElementById('edit-total-custo');
+  if (el) el.textContent = fmt(total);
+}
+
+function salvarEditFicha() {
+  const id = state.editingFichaId;
+  const ficha = state.fichas.find(f => f.id === id);
+  if (!ficha) return;
+
+  const nome = document.getElementById('edit-ficha-nome').value.trim().toUpperCase();
+  const categoria = document.getElementById('edit-ficha-categoria').value;
+  const precoCardapio = parseFloat(document.getElementById('edit-ficha-cardapio').value)||0;
+  if (!nome) return alert('Informe o nome do produto');
+
+  const rows = document.querySelectorAll('#edit-ing-list .edit-ing-row');
+  const ingredientes = [];
+  rows.forEach(row => {
+    const insumoId = parseInt(row.querySelector('.edit-ing-select').value);
+    const qtdG = parseFloat(row.querySelector('.edit-ing-qtd').value)||0;
+    if (insumoId && qtdG > 0) ingredientes.push({insumoId, qtdG});
+  });
+  if (!ingredientes.length) return alert('Adicione ao menos um ingrediente');
+
+  ficha.nome = nome;
+  ficha.categoria = categoria;
+  ficha.precoCardapio = precoCardapio;
+  ficha.ingredientes = ingredientes;
+
+  save(); renderAll();
+  document.getElementById('modal-edit-ficha').classList.remove('active');
+  state.editingFichaId = null;
+}
+
+function renderFichas() {
+  const el = document.getElementById('fichas-list');
+  if (!state.fichas.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Nenhuma ficha técnica cadastrada.</p></div>';
+    return;
+  }
+  el.innerHTML = state.fichas.map(ficha => {
+    const custo = calcCustoFicha(ficha);
+    const cardapio = ficha.precoCardapio || 0;
+    const lucroRs = cardapio > 0 ? cardapio - custo : null;
+    const lucroPct = cardapio > 0 ? lucroRs / cardapio : null;
+    const lucroColor = lucroPct !== null ? (lucroPct >= 0.3 ? 'var(--green)' : lucroPct >= 0.1 ? 'var(--accent)' : 'var(--red)') : 'var(--text3)';
+    return `<div class="panel" style="margin-bottom:1rem">
+      <div class="panel-header flex-between">
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <div>
+            <h3>${ficha.nome}</h3>
+            <span class="tag">${ficha.categoria}</span>
+          </div>
+        </div>
+        <div class="flex-gap">
+          <div style="text-align:right">
+            <div style="font-size:0.75rem;color:var(--text3)">Custo Total</div>
+            <div style="font-weight:700;color:var(--accent);font-family:'Syne',sans-serif">${fmt(custo)}</div>
+          </div>
+          ${cardapio > 0 ? `
+          <div style="text-align:right">
+            <div style="font-size:0.75rem;color:var(--text3)">Lucro</div>
+            <div style="font-weight:700;color:${lucroColor};font-family:'Syne',sans-serif">${pct(lucroPct)}</div>
+          </div>` : ''}
+          <button class="btn btn-secondary btn-sm" onclick="openEditFicha(${ficha.id})" style="display:flex;align-items:center;gap:0.35rem">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFicha(${ficha.id})">× Remover</button>
+        </div>
+      </div>
+      <div style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Ingrediente</th>
+              <th>Medida</th>
+              <th>Qtd</th>
+              <th>Custo unitário</th>
+              <th>Custo total</th>
+              <th>% na receita</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ficha.ingredientes.map(ing => {
+              const ins = state.insumos.find(i => i.id === ing.insumoId);
+              if (!ins) return '';
+              const custo_ing = getValorGrama(ins) * ing.qtdG;
+              const unidade = ins.medida === 'UN' ? 'un' : ins.medida === 'ML' ? 'ml' : 'g';
+              const pctReceita = custo > 0 ? (custo_ing/custo*100).toFixed(1) : 0;
+              return `<tr>
+                <td><strong>${ins.nome}</strong></td>
+                <td><span class="tag">${ins.medida}</span></td>
+                <td>${ing.qtdG}${unidade}</td>
+                <td style="color:var(--text2)">${fmt(getValorGrama(ins))}/g</td>
+                <td style="color:var(--accent);font-weight:600">${fmt(custo_ing)}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:0.5rem">
+                    <div class="progress-bar" style="width:60px;height:5px">
+                      <div class="progress-fill" style="width:${pctReceita}%;background:var(--accent)"></div>
+                    </div>
+                    <span style="font-size:0.78rem;color:var(--text3)">${pctReceita}%</span>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+            <tr style="background:rgba(245,166,35,0.06)">
+              <td colspan="4"><strong>TOTAL INSUMOS</strong></td>
+              <td colspan="2"><strong style="color:var(--accent);font-family:'Syne',sans-serif;font-size:1rem">${fmt(custo)}</strong>
+              ${cardapio > 0 ? `<span style="margin-left:1rem;font-size:0.78rem;color:var(--text3)">Cardápio: ${fmt(cardapio)} → Lucro: <span style="color:${lucroColor}">${fmt(lucroRs)}</span></span>` : ''}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updatePrecoCardapio(fichaId, val) {
+  const ficha = state.fichas.find(f => f.id === fichaId);
+  if (ficha) { ficha.precoCardapio = parseFloat(val)||0; save(); renderDashboard(); }
+}
+
+// ===================== DASHBOARD =====================
+function renderDashboard() {
+  document.getElementById('dash-total-insumos').textContent = state.insumos.length;
+  document.getElementById('dash-total-fichas').textContent = state.fichas.length;
+  const custosFixos = state.custosFixos.reduce((s,c) => s+c.valor, 0);
+  document.getElementById('dash-custo-fixo').textContent = fmt(custosFixos);
+  const fat = parseFloat(document.getElementById('desp-fat')?.value)||13000;
+  document.getElementById('dash-fat').textContent = fmt(fat);
+  const pctCF = custosFixos / fat;
+  document.getElementById('dash-pct').textContent = pct(pctCF);
+
+  const tbody = document.getElementById('dash-table-body');
+  if (!state.fichas.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = state.fichas.map(f => {
+    const custo = calcCustoFicha(f);
+    const cardapio = f.precoCardapio || 0;
+    const lucroRs = cardapio - custo;
+    const lucroPct = cardapio > 0 ? lucroRs / cardapio : 0;
+    const cls = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
+    const status = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
+    const label = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
+    return `<tr>
+      <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
+      <td>${fmt(custo)}</td>
+      <td>${fmt(cardapio)}</td>
+      <td class="${cls}">${fmt(lucroRs)}</td>
+      <td class="${cls}">${pct(lucroPct)}</td>
+      <td><span class="badge ${status}">${label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===================== PRECIFICAÇÃO =====================
+function updatePrecificacao() {
+  const fichaId = parseInt(document.getElementById('preco-select-ficha').value);
+  const ficha = state.fichas.find(f => f.id === fichaId);
+  if (ficha && ficha.precoCardapio > 0) {
+    document.getElementById('preco-cardapio').value = ficha.precoCardapio;
+  }
+  calcPreco();
+}
+
+function calcPreco() {
+  const fichaId = parseInt(document.getElementById('preco-select-ficha').value);
+  const ficha = state.fichas.find(f => f.id === fichaId);
+  const custoBase = ficha ? calcCustoFicha(ficha) : 0;
+
+  const producaoPct = (parseFloat(document.getElementById('preco-producao').value)||0) / 100;
+  const fixoPct = (parseFloat(document.getElementById('preco-fixo').value)||0) / 100;
+  const variavelPct = (parseFloat(document.getElementById('preco-variavel').value)||0) / 100;
+  const margemPct = (parseFloat(document.getElementById('preco-margem').value)||0) / 100;
+  const embalagem = parseFloat(document.getElementById('preco-embalagem').value)||0;
+  const taxaPct = (parseFloat(document.getElementById('preco-taxa').value)||0) / 100;
+  const ifood18Pct = (parseFloat(document.getElementById('preco-ifood18').value)||0) / 100;
+  const ifood28Pct = (parseFloat(document.getElementById('preco-ifood28').value)||0) / 100;
+  const cardapio = parseFloat(document.getElementById('preco-cardapio').value)||0;
+
+  const c1 = custoBase;
+  const afterProducao = c1 * (1 + producaoPct);
+  const afterFixo = afterProducao * (1 + fixoPct);
+  const afterVariavel = afterFixo * (1 + variavelPct);
+  const afterTaxa = afterVariavel * (1 + taxaPct);
+  const afterMargem = afterTaxa / (1 - margemPct);
+  const precoSugerido = afterMargem + embalagem;
+  const precoIfood18 = precoSugerido / (1 - ifood18Pct);
+  const precoIfood28 = precoSugerido / (1 - ifood28Pct);
+
+  const lucroRs = cardapio - precoSugerido;
+  const lucroPct = cardapio > 0 ? lucroRs / cardapio : 0;
+
+  // Valor unitário de cada componente (o quanto CADA parte acrescenta)
+  const unitProducao   = afterProducao - c1;
+  const unitFixo       = afterFixo - afterProducao;
+  const unitVariavel   = afterVariavel - afterFixo;
+  const unitTaxa       = afterTaxa - afterVariavel;
+  const unitMargem     = afterMargem - afterTaxa;
+  const unitEmbalagem  = embalagem;
+
+  // % de cada componente sobre o preço sugerido
+  const base = precoSugerido || 1;
+  function rowColor(v) { return v >= 0 ? 'var(--text)' : 'var(--red)'; }
+  function barW(v) { return Math.min(Math.abs(v/base*100), 100).toFixed(1); }
+
+  const rows = [
+    { label: '🥩 Custo Insumos',   valor: c1,           cor: 'var(--accent)' },
+    { label: '⚙️ Produção',         valor: unitProducao,  cor: 'var(--text)' },
+    { label: '🏠 Custo Fixo',       valor: unitFixo,      cor: 'var(--text)' },
+    { label: '📦 Variável',          valor: unitVariavel,  cor: 'var(--text)' },
+    { label: '🏛️ Taxa/Imposto',      valor: unitTaxa,      cor: 'var(--text)' },
+    { label: '📈 Margem de Lucro',   valor: unitMargem,    cor: 'var(--green)' },
+    { label: '📫 Embalagem',         valor: unitEmbalagem, cor: 'var(--text)' },
+  ];
+
+  const tbody = document.getElementById('res-breakdown-table');
+  tbody.innerHTML = rows.map(r => {
+    const pctVal = precoSugerido > 0 ? (r.valor / base * 100) : 0;
+    const bw = barW(r.valor);
+    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">' +
+      '<td style="padding:0.5rem 0.5rem">' +
+        '<div style="font-weight:500;font-size:0.88rem">' + r.label + '</div>' +
+        '<div style="margin-top:0.3rem;background:var(--border);border-radius:999px;height:4px;overflow:hidden">' +
+          '<div style="height:4px;border-radius:999px;width:' + bw + '%;background:' + r.cor + ';transition:width 0.4s"></div>' +
+        '</div>' +
+      '</td>' +
+      '<td style="text-align:right;padding:0.5rem 0.5rem;font-family:Syne,sans-serif;font-weight:700;color:' + r.cor + ';font-size:0.95rem;white-space:nowrap">' + fmt(r.valor) + '</td>' +
+      '<td style="text-align:right;padding:0.5rem 0.5rem;font-size:0.88rem;color:var(--text2);white-space:nowrap">' + pctVal.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
+      '<td style="padding:0.5rem 0.5rem"></td>' +
+    '</tr>';
+  }).join('') +
+  '<tr style="border-top:2px solid rgba(245,166,35,0.4)">' +
+    '<td style="padding:0.5rem 0.5rem;font-weight:700;font-family:Syne,sans-serif">TOTAL</td>' +
+    '<td style="text-align:right;padding:0.5rem 0.5rem;font-family:Syne,sans-serif;font-weight:800;color:var(--accent);font-size:1rem">' + fmt(precoSugerido) + '</td>' +
+    '<td style="text-align:right;padding:0.5rem 0.5rem;font-size:0.88rem;color:var(--accent);font-weight:700">100%</td>' +
+    '<td></td>' +
+  '</tr>';
+
+  document.getElementById('res-preco-sugerido').textContent = fmt(precoSugerido);
+  document.getElementById('res-ifood18').textContent = fmt(precoIfood18);
+  document.getElementById('res-ifood28').textContent = fmt(precoIfood28);
+
+  const lucroEl = document.getElementById('res-lucro-rs');
+  const lucroPctEl = document.getElementById('res-lucro-pct');
+  const cardapioEl = document.getElementById('res-preco-cardapio');
+  const statusEl = document.getElementById('res-status-badge');
+
+  cardapioEl.textContent = cardapio > 0 ? fmt(cardapio) : '—';
+
+  lucroEl.textContent = cardapio > 0 ? fmt(lucroRs) : '—';
+  lucroPctEl.textContent = cardapio > 0 ? pct(lucroPct) : '—';
+  lucroEl.style.color = lucroRs >= 0 ? 'var(--green)' : 'var(--red)';
+  lucroPctEl.style.color = lucroRs >= 0 ? 'var(--green)' : 'var(--red)';
+
+  if (cardapio > 0) {
+    const statusLabel = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
+    const statusClass = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
+    statusEl.innerHTML = '<span class="badge ' + statusClass + '" style="font-size:0.9rem;padding:0.3rem 0.75rem">' + statusLabel + '</span>';
+  } else {
+    statusEl.innerHTML = '<span class="badge" style="background:var(--surface2);color:var(--text3);font-size:0.9rem;padding:0.3rem 0.75rem">Sem preço</span>';
+  }
+
+  // Breakdown
+  if (ficha) {
+    const breakdown = document.getElementById('custo-breakdown');
+    const ings = ficha.ingredientes.map(ing => {
+      const ins = state.insumos.find(i => i.id === ing.insumoId);
+      if (!ins) return null;
+      const c = getValorGrama(ins) * ing.qtdG;
+      const w = c1 > 0 ? (c/c1*100).toFixed(1) : 0;
+      return {nome: ins.nome, custo: c, pct: w};
+    }).filter(Boolean).sort((a,b) => b.custo - a.custo);
+    breakdown.innerHTML = ings.map(i => `
+      <div style="margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.3rem">
+          <span>${i.nome}</span>
+          <span style="color:var(--accent)">${fmt(i.custo)} <span style="color:var(--text3)">(${i.pct}%)</span></span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${i.pct}%;background:var(--accent)"></div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function aplicarCustoFixo() {
+  const v = Math.round((parseFloat(document.getElementById('desp-fixo').value)||0) / (parseFloat(document.getElementById('desp-fat').value)||1) * 100);
+  document.getElementById('preco-fixo').value = v;
+  showPage('precos');
+  calcPreco();
+}
+
+// ===================== CÁLCULO DE PERDA =====================
+function calcPerda() {
+  const kgCompra = parseFloat(document.getElementById('perda-kg-compra').value)||0;
+  const valorKg = parseFloat(document.getElementById('perda-valor-kg').value)||0;
+  const kgCozido = parseFloat(document.getElementById('perda-kg-cozido').value)||0;
+  const total = kgCompra * valorKg;
+  const perdaKg = kgCompra - kgCozido;
+  const perdaPct = kgCompra > 0 ? perdaKg / kgCompra : 0;
+  const valorKgCozido = kgCozido > 0 ? total / kgCozido : 0;
+  const valor100g = valorKgCozido / 10;
+
+  document.getElementById('perda-total').textContent = fmt(total);
+  document.getElementById('perda-pct').textContent = pct(perdaPct);
+  document.getElementById('perda-kg-perdido').textContent = perdaKg.toFixed(2) + ' kg';
+  document.getElementById('perda-valor-cozido').textContent = fmt(valorKgCozido);
+  document.getElementById('perda-valor-100g').textContent = fmt(valor100g);
+  document.getElementById('perda-bar').style.width = Math.min(perdaPct*100, 100) + '%';
+}
+
+function salvarPerda() {
+  const nome = document.getElementById('perda-nome').value.trim() || 'Produto';
+  const kgCompra = parseFloat(document.getElementById('perda-kg-compra').value)||0;
+  const valorKg = parseFloat(document.getElementById('perda-valor-kg').value)||0;
+  const kgCozido = parseFloat(document.getElementById('perda-kg-cozido').value)||0;
+  const total = kgCompra * valorKg;
+  const perdaKg = kgCompra - kgCozido;
+  const perdaPct = kgCompra > 0 ? perdaKg / kgCompra : 0;
+  const valorKgCozido = kgCozido > 0 ? total / kgCozido : 0;
+  const valor100g = valorKgCozido / 10;
+  state.perdas.push({nome, kgCompra, valorKg, kgCozido, perdaKg, perdaPct, valorKgCozido, valor100g});
+  save(); renderPerdaHist();
+  alert('Perda salva no histórico!');
+}
+
+function renderPerdaHist() {
+  const tbody = document.getElementById('perda-hist-table');
+  if (!state.perdas.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum cálculo salvo.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = state.perdas.map((p,i) => {
+    const perdaColor = p.perdaPct >= 0.5 ? 'var(--red)' : p.perdaPct >= 0.3 ? 'var(--accent)' : 'var(--green)';
+    return '<tr id="perda-row-' + i + '">' +
+      '<td><strong>' + p.nome + '</strong></td>' +
+      '<td>' + p.kgCompra + ' kg</td>' +
+      '<td>' + fmt(p.valorKg) + '</td>' +
+      '<td>' + p.kgCozido + ' kg</td>' +
+      '<td style="color:' + perdaColor + ';font-weight:600">' + pct(p.perdaPct) + '</td>' +
+      '<td>' + fmt(p.valorKgCozido) + '</td>' +
+      '<td style="color:var(--accent);font-weight:600">' + fmt(p.valor100g) + '</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn btn-secondary btn-sm" style="margin-right:0.3rem" onclick="editPerda(' + i + ')">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="removePerda(' + i + ')">×</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function editPerda(i) {
+  const p = state.perdas[i];
+  const row = document.getElementById('perda-row-' + i);
+  row.innerHTML =
+    '<td><input id="ep-nome-' + i + '" value="' + p.nome + '" style="width:100%;min-width:140px"></td>' +
+    '<td><input id="ep-kgc-' + i + '" type="number" value="' + p.kgCompra + '" step="0.1" style="width:75px" oninput="recalcPerdaRow(' + i + ')"> kg</td>' +
+    '<td><input id="ep-vkg-' + i + '" type="number" value="' + p.valorKg + '" step="0.01" style="width:75px" oninput="recalcPerdaRow(' + i + ')"></td>' +
+    '<td><input id="ep-kgz-' + i + '" type="number" value="' + p.kgCozido + '" step="0.1" style="width:75px" oninput="recalcPerdaRow(' + i + ')"> kg</td>' +
+    '<td id="ep-ppct-' + i + '" style="color:var(--accent);font-weight:600">' + pct(p.perdaPct) + '</td>' +
+    '<td id="ep-vkgz-' + i + '">' + fmt(p.valorKgCozido) + '</td>' +
+    '<td style="color:var(--accent);font-weight:600" id="ep-v100-' + i + '">' + fmt(p.valor100g) + '</td>' +
+    '<td style="white-space:nowrap">' +
+      '<button class="btn btn-primary btn-sm" style="margin-right:0.3rem" onclick="savePerdaRow(' + i + ')">✓</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="renderPerdaHist()">✕</button>' +
+    '</td>';
+}
+
+function recalcPerdaRow(i) {
+  const kgCompra = parseFloat(document.getElementById('ep-kgc-' + i).value) || 0;
+  const valorKg  = parseFloat(document.getElementById('ep-vkg-' + i).value) || 0;
+  const kgCozido = parseFloat(document.getElementById('ep-kgz-' + i).value) || 0;
+  const perdaKg  = kgCompra - kgCozido;
+  const perdaPct = kgCompra > 0 ? perdaKg / kgCompra : 0;
+  const total    = kgCompra * valorKg;
+  const valorKgCozido = kgCozido > 0 ? total / kgCozido : 0;
+  const valor100g = valorKgCozido / 10;
+  const perdaColor = perdaPct >= 0.5 ? 'var(--red)' : perdaPct >= 0.3 ? 'var(--accent)' : 'var(--green)';
+  document.getElementById('ep-ppct-' + i).textContent = pct(perdaPct);
+  document.getElementById('ep-ppct-' + i).style.color = perdaColor;
+  document.getElementById('ep-vkgz-' + i).textContent = fmt(valorKgCozido);
+  document.getElementById('ep-v100-' + i).textContent = fmt(valor100g);
+}
+
+
+
+function savePerdaRow(i) {
+  const nome          = document.getElementById('ep-nome-' + i).value.trim() || state.perdas[i].nome;
+  const kgCompra      = parseFloat(document.getElementById('ep-kgc-' + i).value) || 0;
+  const valorKg       = parseFloat(document.getElementById('ep-vkg-' + i).value) || 0;
+  const kgCozido      = parseFloat(document.getElementById('ep-kgz-' + i).value) || 0;
+  const total = kgCompra * valorKg;
+  const valorKgCozido = kgCozido > 0 ? total / kgCozido : 0;
+  const perdaKg       = kgCompra - kgCozido;
+  const perdaPct      = kgCompra > 0 ? perdaKg / kgCompra : 0;
+  const valor100g     = valorKgCozido / 10;
+  state.perdas[i] = { nome, kgCompra, valorKg, kgCozido, perdaKg, perdaPct, valorKgCozido, valor100g };
+  save();
+  renderPerdaHist();
+}
+
+function removePerda(i) {
+  if (!confirm('Remover este registro?')) return;
+  state.perdas.splice(i, 1);
+  save();
+  renderPerdaHist();
+}
+
+function limparPerdas() {
+  if (!confirm('Limpar todo o histórico de perdas?')) return;
+  state.perdas = [];
+  save();
+  renderPerdaHist();
+}
+
+// ===================== DESPESAS vs FAT =====================
+function calcDespFat() {
+  const fixo = parseFloat(document.getElementById('desp-fixo').value)||0;
+  const fat = parseFloat(document.getElementById('desp-fat').value)||1;
+  const r = fixo / fat;
+  document.getElementById('desp-resultado').textContent = (r*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+  document.getElementById('desp-bar').style.width = Math.min(r*100,100)+'%';
+  const avaliacao = r < 0.2 ? 'Excelente! Custo fixo bem controlado.' : r < 0.3 ? 'Bom. Custo fixo em nível aceitável.' : r < 0.4 ? 'Atenção! Custo fixo elevado — revise despesas.' : 'Crítico! Custo fixo muito alto — ação urgente necessária.';
+  document.getElementById('desp-avaliacao').textContent = avaliacao;
+  document.getElementById('dash-fat').textContent = fmt(fat);
+  renderDashboard();
+}
+
+function renderCustosFixos() {
+  const total = state.custosFixos.reduce((s,c) => s+c.valor, 0);
+  document.getElementById('custos-fixos-total').textContent = fmt(total);
+  if (document.getElementById('desp-fixo')) {
+    document.getElementById('desp-fixo').value = total;
+    calcDespFat();
+  }
+  const tbody = document.getElementById('custos-fixos-table');
+  tbody.innerHTML = state.custosFixos.map(c => {
+    const pctVal = total > 0 ? (c.valor/total*100).toFixed(1) : 0;
+    return `<tr>
+      <td><input type="text" value="${c.nome}" style="background:none;border:none;color:var(--text);font-size:0.88rem;width:100%" onchange="updateCustoNome(${c.id},this.value)"></td>
+      <td><input type="number" value="${c.valor}" style="width:120px" onchange="updateCustoValor(${c.id},this.value)"></td>
+      <td>
+        <div class="progress-bar" style="height:8px;width:120px;display:inline-block">
+          <div class="progress-fill" style="width:${pctVal}%;background:var(--accent)"></div>
+        </div>
+        <span style="font-size:0.8rem;color:var(--text2);margin-left:0.5rem">${pctVal}%</span>
+      </td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCusto(${c.id})">×</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateCustoNome(id, val) {
+  const c = state.custosFixos.find(x=>x.id===id);
+  if(c) {c.nome=val; save();}
+}
+function updateCustoValor(id, val) {
+  const c = state.custosFixos.find(x=>x.id===id);
+  if(c) {c.valor=parseFloat(val)||0; save(); renderCustosFixos();}
+}
+function deleteCusto(id) {
+  state.custosFixos = state.custosFixos.filter(x=>x.id!==id);
+  save(); renderCustosFixos();
+}
+function addItemCusto() {
+  const nome = prompt('Nome do item de custo fixo:');
+  if (!nome) return;
+  const val = parseFloat(prompt('Valor (R$):'))||0;
+  const newId = Math.max(...state.custosFixos.map(c=>c.id),0)+1;
+  state.custosFixos.push({id:newId, nome, valor:val});
+  save(); renderCustosFixos();
+}
+
+// ===================== BOOTSTRAP =====================
+// A inicialização é feita pelo módulo Firebase via window.initApp()
+// Se o módulo já executou antes deste script (raro), chama init() agora
+if (window._dadosIniciais !== undefined) {
+  init();
+} else {
+  // Garante que calcPerda e calcDespFat rodem para mostrar valores iniciais nos campos
+  calcPerda();
+  calcDespFat();
+}
+</script>
+</body>
+</html>
