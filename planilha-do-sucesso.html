@@ -9,7 +9,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword as fbUpdatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCPssE8M_MWTCUmn25T7r9Amg1QGl8H73o",
@@ -123,12 +124,49 @@
           <td><strong>${c.nome || "—"}</strong></td>
           <td>${c.email}</td>
           <td>${data}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="deletarCliente('${c.uid}', '${c.email}')">Remover</button></td>
+          <td style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalSenha('${c.uid}', '${c.nome || c.email}')">🔑 Alterar Senha</button>
+            <button class="btn btn-danger btn-sm" onclick="deletarCliente('${c.uid}', '${c.email}')">Remover</button>
+          </td>
         </tr>`;
       }).join("");
     } catch(e) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--red)">Erro ao carregar clientes.</td></tr>';
     }
+  };
+
+  window.abrirModalSenha = function(uid, nome) {
+    document.getElementById('modal-senha-uid').value = uid;
+    document.getElementById('modal-senha-nome').textContent = nome;
+    document.getElementById('modal-senha-nova').value = '';
+    document.getElementById('modal-senha-erro').style.display = 'none';
+    document.getElementById('modal-senha-ok').style.display = 'none';
+    document.getElementById('modal-alterar-senha').classList.add('active');
+  };
+
+  window.salvarNovaSenha = async function() {
+    const uid = document.getElementById('modal-senha-uid').value;
+    const novaSenha = document.getElementById('modal-senha-nova').value;
+    const erroEl = document.getElementById('modal-senha-erro');
+    const okEl = document.getElementById('modal-senha-ok');
+    erroEl.style.display = 'none'; okEl.style.display = 'none';
+    if (novaSenha.length < 6) {
+      erroEl.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+      erroEl.style.display = 'block'; return;
+    }
+    try {
+      // Salva nova senha no Firestore para o cliente usar no próximo login
+      await setDoc(doc(db, 'clientes', uid), { senhaPendente: novaSenha }, { merge: true });
+      okEl.textContent = '✅ Senha atualizada! O cliente usará a nova senha no próximo login.';
+      okEl.style.display = 'block';
+    } catch(e) {
+      erroEl.textContent = 'Erro ao atualizar senha: ' + e.message;
+      erroEl.style.display = 'block';
+    }
+  };
+
+  window.fecharModalSenha = function() {
+    document.getElementById('modal-alterar-senha').classList.remove('active');
   };
 
   window.deletarCliente = async function(uid, email) {
@@ -150,6 +188,18 @@
     if (!user) {
       document.getElementById("login-screen").style.display = "flex";
       return;
+    }
+
+    // Check if there's a pending password change for this user
+    if (user.email !== ADMIN_EMAIL) {
+      try {
+        const clienteSnap = await getDoc(doc(db, 'clientes', user.uid));
+        if (clienteSnap.exists() && clienteSnap.data().senhaPendente) {
+          const novaSenha = clienteSnap.data().senhaPendente;
+          await fbUpdatePassword(user, novaSenha);
+          await setDoc(doc(db, 'clientes', user.uid), { senhaPendente: null }, { merge: true });
+        }
+      } catch(e) { console.log('Senha pendente não aplicada:', e); }
     }
 
     if (user.email === ADMIN_EMAIL) {
