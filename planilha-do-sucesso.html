@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Planilha do Sucesso — Controle de Custos</title>
+<title>Planilha do Sucesso</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
   const firebaseConfig = {
     apiKey: "AIzaSyCPssE8M_MWTCUmn25T7r9Amg1QGl8H73o",
     authDomain: "planilha-do-sucesso.firebaseapp.com",
@@ -17,33 +19,164 @@
     messagingSenderId: "169736117257",
     appId: "1:169736117257:web:9125e177119485a44eacd8"
   };
+
+  const ADMIN_EMAIL = "josurf5lost@gmail.com"; // Troque pelo seu e-mail de admin
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  const DOC_ID = "planilha-do-sucesso";
-  const firebaseConfigurado = !firebaseConfig.apiKey.includes("COLE_");
+  const auth = getAuth(app);
+
+  // ---- SALVAR/CARREGAR dados por usuário ----
   window.saveToFirebase = async function(dados) {
-    if (!firebaseConfigurado) { localStorage.setItem("planilha_dados", JSON.stringify(dados)); return; }
-    try { await setDoc(doc(db, "planilha", DOC_ID), dados); mostrarStatusSalvo(); }
-    catch(e) { localStorage.setItem("planilha_dados", JSON.stringify(dados)); }
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      await setDoc(doc(db, "clientes", user.uid, "dados", "planilha"), dados);
+      mostrarStatusSalvo();
+    } catch(e) {
+      console.error("Erro ao salvar:", e);
+    }
   };
+
   window.loadFromFirebase = async function() {
-    if (!firebaseConfigurado) { const l=localStorage.getItem("planilha_dados"); return l?JSON.parse(l):null; }
-    try { const s=await getDoc(doc(db,"planilha",DOC_ID)); return s.exists()?s.data():null; }
-    catch(e) { const l=localStorage.getItem("planilha_dados"); return l?JSON.parse(l):null; }
+    const user = auth.currentUser;
+    if (!user) return null;
+    try {
+      const snap = await getDoc(doc(db, "clientes", user.uid, "dados", "planilha"));
+      return snap.exists() ? snap.data() : null;
+    } catch(e) {
+      console.error("Erro ao carregar:", e);
+      return null;
+    }
   };
-  window.firebaseConfigurado = firebaseConfigurado;
-  function mostrarStatusSalvo() {
-    const el=document.getElementById("status-salvo");
-    if(!el) return;
-    el.style.opacity="1";
-    clearTimeout(window._saveTimer);
-    window._saveTimer=setTimeout(()=>{el.style.opacity="0";},2500);
-  }
-  document.addEventListener("DOMContentLoaded", async () => {
+
+  // ---- LOGIN ----
+  window.fazerLogin = async function() {
+    const email = document.getElementById("login-email").value.trim();
+    const senha = document.getElementById("login-senha").value;
+    const erroEl = document.getElementById("login-erro");
+    const btnEl = document.getElementById("btn-login");
+    erroEl.style.display = "none";
+    btnEl.textContent = "Entrando...";
+    btnEl.disabled = true;
+    try {
+      await signInWithEmailAndPassword(auth, email, senha);
+    } catch(e) {
+      erroEl.textContent = "E-mail ou senha incorretos. Tente novamente.";
+      erroEl.style.display = "block";
+      btnEl.textContent = "Entrar";
+      btnEl.disabled = false;
+    }
+  };
+
+  // ---- LOGOUT ----
+  window.fazerLogout = async function() {
+    await signOut(auth);
+  };
+
+  // ---- CRIAR CLIENTE (admin) ----
+  window.criarCliente = async function() {
+    const nome = document.getElementById("admin-nome").value.trim();
+    const email = document.getElementById("admin-email").value.trim();
+    const senha = document.getElementById("admin-senha").value;
+    const erroEl = document.getElementById("admin-erro");
+    const okEl = document.getElementById("admin-ok");
+    erroEl.style.display = "none"; okEl.style.display = "none";
+    if (!nome || !email || senha.length < 6) {
+      erroEl.textContent = "Preencha todos os campos. Senha mínimo 6 caracteres.";
+      erroEl.style.display = "block"; return;
+    }
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, senha);
+      // Salva info do cliente no Firestore
+      await setDoc(doc(db, "clientes", cred.user.uid), {
+        nome, email, criadoEm: new Date().toISOString(), uid: cred.user.uid
+      });
+      // Faz logout do cliente recém-criado e volta pro admin
+      await signOut(auth);
+      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, window._adminSenha || "");
+      document.getElementById("admin-nome").value = "";
+      document.getElementById("admin-email").value = "";
+      document.getElementById("admin-senha").value = "";
+      okEl.textContent = "✅ Cliente " + nome + " criado com sucesso!";
+      okEl.style.display = "block";
+      carregarClientes();
+    } catch(e) {
+      erroEl.textContent = "Erro: " + (e.code === "auth/email-already-in-use" ? "Este e-mail já está cadastrado." : e.message);
+      erroEl.style.display = "block";
+    }
+  };
+
+  // ---- CARREGAR lista de clientes (admin) ----
+  window.carregarClientes = async function() {
+    const tbody = document.getElementById("admin-clientes-table");
+    try {
+      const snap = await getDocs(collection(db, "clientes"));
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum cliente cadastrado ainda.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = snap.docs.map(d => {
+        const c = d.data();
+        const data = c.criadoEm ? new Date(c.criadoEm).toLocaleDateString("pt-BR") : "—";
+        return `<tr>
+          <td><strong>${c.nome || "—"}</strong></td>
+          <td>${c.email}</td>
+          <td>${data}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="deletarCliente('${c.uid}', '${c.email}')">Remover</button></td>
+        </tr>`;
+      }).join("");
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--red)">Erro ao carregar clientes.</td></tr>';
+    }
+  };
+
+  window.deletarCliente = async function(uid, email) {
+    if (!confirm("Remover cliente " + email + "? Os dados dele serão apagados.")) return;
+    try {
+      await deleteDoc(doc(db, "clientes", uid));
+      carregarClientes();
+    } catch(e) {
+      alert("Erro ao remover: " + e.message);
+    }
+  };
+
+  // ---- AUTH STATE: controla qual tela mostrar ----
+  onAuthStateChanged(auth, async (user) => {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("admin-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "none";
+
+    if (!user) {
+      document.getElementById("login-screen").style.display = "flex";
+      return;
+    }
+
+    if (user.email === ADMIN_EMAIL) {
+      // É admin: mostrar painel admin
+      window._adminSenha = ""; // limpa por segurança
+      document.getElementById("admin-screen").style.display = "block";
+      carregarClientes();
+      return;
+    }
+
+    // É cliente: mostrar o app
+    document.getElementById("app-screen").style.display = "block";
+    const headerUser = document.getElementById("header-user");
+    if (headerUser) headerUser.textContent = user.email;
+
     const dados = await window.loadFromFirebase();
     window._dadosIniciais = dados;
     if (typeof window.initApp === "function") window.initApp(dados);
   });
+
+  function mostrarStatusSalvo() {
+    const el = document.getElementById("status-salvo");
+    if (!el) return;
+    el.style.opacity = "1";
+    clearTimeout(window._saveTimer);
+    window._saveTimer = setTimeout(() => { el.style.opacity = "0"; }, 2500);
+  }
 </script>
 <style>
   :root {
@@ -241,8 +374,68 @@
   .profit-positive { color: var(--green); }
   .profit-negative { color: var(--red); }
 </style>
+
 </head>
 <body>
+
+<!-- ===== TELA DE LOGIN ===== -->
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
+  <div style="width:100%;max-width:400px;padding:1.5rem">
+    <div style="text-align:center;margin-bottom:2.5rem">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;margin-bottom:0.5rem">Planilha do <span style='color:var(--accent)'>Sucesso</span></div>
+      <p style="color:var(--text2);font-size:0.9rem">Entre com suas credenciais para acessar</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem">
+      <div id="login-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group">
+          <label>E-mail</label>
+          <input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter') fazerLogin()">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') fazerLogin()">
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:1.5rem;font-size:0.78rem;color:var(--text3)">Planilha do Sucesso © 2025</p>
+  </div>
+</div>
+
+<!-- ===== PAINEL ADMIN ===== -->
+<div id="admin-screen" style="display:none;min-height:100vh;background:var(--bg)">
+  <header style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem">⚙️ Painel <span style='color:var(--accent)'>Admin</span></div>
+    <button class="btn btn-danger btn-sm" onclick="fazerLogout()">Sair</button>
+  </header>
+  <div style="max-width:900px;margin:0 auto;padding:2rem">
+    <div style="margin-bottom:2rem">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700">Gerenciar Clientes</h2>
+      <p style="color:var(--text2);font-size:0.9rem;margin-top:0.25rem">Crie e gerencie os acessos dos seus clientes</p>
+    </div>
+    <div class="panel" style="margin-bottom:1.5rem">
+      <div class="panel-header"><h3>➕ Criar Novo Cliente</h3></div>
+      <div class="panel-body">
+        <div id="admin-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
+        <div id="admin-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--green)"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nome do Cliente</label><input type="text" id="admin-nome" placeholder="Ex: Restaurante do João"></div>
+          <div class="form-group"><label>E-mail</label><input type="email" id="admin-email" placeholder="cliente@email.com"></div>
+          <div class="form-group"><label>Senha inicial</label><input type="password" id="admin-senha" placeholder="Mínimo 6 caracteres"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:1rem" onclick="criarCliente()">Criar Cliente</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>👥 Clientes Cadastrados</h3></div>
+      <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th></th></tr></thead><tbody id="admin-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP PRINCIPAL (só aparece após login) ===== -->
+<div id="app-screen" style="display:none">
 
 <header>
   <div class="logo">Planilha do <span>Sucesso</span></div>
@@ -256,6 +449,10 @@
   </nav>
   <div id="status-salvo" style="font-size:0.78rem;color:var(--green);opacity:0;transition:opacity 0.4s;display:flex;align-items:center;gap:0.35rem">✓ Salvo no servidor</div>
   <div id="status-firebase" style="font-size:0.75rem;padding:0.25rem 0.65rem;border-radius:6px;background:rgba(232,68,26,0.15);color:var(--red);display:none">⚠️ Modo local</div>
+  <div style="display:flex;align-items:center;gap:0.75rem">
+    <span id="header-user" style="font-size:0.8rem;color:var(--text2)"></span>
+    <button class="btn btn-secondary btn-sm" onclick="fazerLogout()">Sair</button>
+  </div>
 </header>
 
 <div class="main">
@@ -704,6 +901,8 @@
     </div>
   </div>
 </div>
+
+
 
 <script>
 // ===================== STATE =====================
@@ -1576,5 +1775,5 @@ if (window._dadosIniciais !== undefined) {
   calcDespFat();
 }
 </script>
-</body>
+
 </html>
