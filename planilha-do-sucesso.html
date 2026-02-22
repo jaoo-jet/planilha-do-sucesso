@@ -22,6 +22,7 @@
   };
 
   const ADMIN_EMAIL = "josurf5lost@gmail.com"; // Troque pelo seu e-mail de admin
+  const SUPORTE_EMAIL = "suporte@planilhadosucesso.com"; // E-mail do acesso de suporte
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
@@ -187,6 +188,7 @@
   onAuthStateChanged(auth, async (user) => {
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("admin-screen").style.display = "none";
+    document.getElementById("suporte-screen").style.display = "none";
     document.getElementById("app-screen").style.display = "none";
 
     if (!user) {
@@ -214,6 +216,13 @@
       return;
     }
 
+    if (user.email === SUPORTE_EMAIL) {
+      // É suporte: mostrar painel de suporte
+      document.getElementById("suporte-screen").style.display = "block";
+      carregarClientesSuporte();
+      return;
+    }
+
     // É cliente: mostrar o app
     document.getElementById("app-screen").style.display = "block";
     const headerUser = document.getElementById("header-user");
@@ -224,6 +233,97 @@
     if (typeof window.initApp === "function") window.initApp(dados);
   });
 
+
+  // ===================== SUPORTE FUNCTIONS =====================
+  let todosClientesSuporte = [];
+  let clienteSuporteAtual = null;
+
+  window.carregarClientesSuporte = async function() {
+    const tbody = document.getElementById("suporte-clientes-table");
+    try {
+      const snap = await getDocs(collection(db, "clientes"));
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum cliente cadastrado.</td></tr>';
+        return;
+      }
+      todosClientesSuporte = snap.docs.map(d => d.data());
+      renderTabelaSuporte(todosClientesSuporte);
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--red)">Erro ao carregar clientes.</td></tr>';
+    }
+  };
+
+  function renderTabelaSuporte(clientes) {
+    const tbody = document.getElementById("suporte-clientes-table");
+    if (!clientes.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum cliente encontrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = clientes.map(cl => {
+      const data = cl.criadoEm ? new Date(cl.criadoEm).toLocaleDateString("pt-BR") : "—";
+      return `<tr>
+        <td><strong>${cl.nome || "—"}</strong></td>
+        <td style="color:var(--text2)">${cl.email}</td>
+        <td style="color:var(--text2)">${data}</td>
+        <td><button class="btn btn-primary btn-sm" onclick="abrirClienteSuporte('${cl.uid}', '${cl.nome || cl.email}', '${cl.email}')">📂 Abrir Planilha</button></td>
+      </tr>`;
+    }).join("");
+  }
+
+  window.filtrarClientesSuporte = function(termo) {
+    const filtrados = todosClientesSuporte.filter(cl =>
+      (cl.nome || "").toLowerCase().includes(termo.toLowerCase()) ||
+      cl.email.toLowerCase().includes(termo.toLowerCase())
+    );
+    renderTabelaSuporte(filtrados);
+  };
+
+  window.abrirClienteSuporte = async function(uid, nome, email) {
+    clienteSuporteAtual = uid;
+    // Show client info bar
+    document.getElementById("suporte-cliente-nome").textContent = nome;
+    document.getElementById("suporte-cliente-email").textContent = "(" + email + ")";
+    document.getElementById("suporte-lista").style.display = "none";
+    document.getElementById("suporte-app").style.display = "block";
+    document.getElementById("btn-voltar-suporte").style.display = "inline-block";
+
+    // Move the main app inside suporte-app
+    const appScreen = document.getElementById("app-screen");
+    const suporteApp = document.getElementById("suporte-app");
+    suporteApp.appendChild(appScreen);
+    appScreen.style.display = "block";
+
+    // Override saveToFirebase to save to this client's UID
+    window.saveToFirebase = async function(dados) {
+      try {
+        await setDoc(doc(db, "clientes", uid, "dados", "planilha"), dados);
+        mostrarStatusSalvo();
+      } catch(e) { console.error("Erro suporte save:", e); }
+    };
+
+    // Load this client's data
+    try {
+      const snap = await getDoc(doc(db, "clientes", uid, "dados", "planilha"));
+      const dados = snap.exists() ? snap.data() : null;
+      const headerUser = document.getElementById("header-user");
+      if (headerUser) headerUser.textContent = "👁️ " + email;
+      if (typeof window.initApp === "function") window.initApp(dados);
+    } catch(e) {
+      console.error("Erro ao carregar dados do cliente:", e);
+    }
+  };
+
+  window.voltarListaClientes = function() {
+    clienteSuporteAtual = null;
+    document.getElementById("suporte-lista").style.display = "block";
+    document.getElementById("suporte-app").style.display = "none";
+    document.getElementById("btn-voltar-suporte").style.display = "none";
+    document.getElementById("app-screen").style.display = "none";
+
+    // Restore saveToFirebase to use current user (suporte)
+    // It will be a no-op since suporte won't save to their own uid
+  };
+
   function mostrarStatusSalvo() {
     const el = document.getElementById("status-salvo");
     if (!el) return;
@@ -231,6 +331,7 @@
     clearTimeout(window._saveTimer);
     window._saveTimer = setTimeout(() => { el.style.opacity = "0"; }, 2500);
   }
+
 </script>
 <style>
   :root {
@@ -501,6 +602,47 @@ function salvarNovaSenha() {
     <div class="panel">
       <div class="panel-header"><h3>👥 Clientes Cadastrados</h3></div>
       <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th></th></tr></thead><tbody id="admin-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== PAINEL SUPORTE ===== -->
+<div id="suporte-screen" style="display:none;min-height:100vh;background:var(--bg)">
+  <header style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem">🛠️ Suporte <span style="color:var(--accent)">Técnico</span></div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <button class="btn btn-secondary btn-sm" id="btn-voltar-suporte" onclick="voltarListaClientes()" style="display:none">← Voltar à lista</button>
+      <button class="btn btn-danger btn-sm" onclick="fazerLogout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- Lista de clientes do suporte -->
+  <div id="suporte-lista" style="max-width:900px;margin:0 auto;padding:2rem">
+    <div style="margin-bottom:2rem">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700">Clientes</h2>
+      <p style="color:var(--text2);font-size:0.9rem;margin-top:0.25rem">Selecione um cliente para ver e editar os dados</p>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h3>👥 Lista de Clientes</h3>
+        <input type="text" placeholder="Buscar cliente..." style="width:220px;padding:0.4rem 0.75rem;font-size:0.85rem" oninput="filtrarClientesSuporte(this.value)">
+      </div>
+      <div style="padding:0">
+        <table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Cadastrado em</th><th></th></tr></thead>
+          <tbody id="suporte-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- App do cliente carregado pelo suporte -->
+  <div id="suporte-app" style="display:none">
+    <div style="background:rgba(245,166,35,0.08);border-bottom:1px solid rgba(245,166,35,0.2);padding:0.6rem 2rem;display:flex;align-items:center;gap:0.75rem">
+      <span style="font-size:0.85rem;color:var(--accent)">🛠️ Modo Suporte:</span>
+      <span id="suporte-cliente-nome" style="font-size:0.85rem;color:var(--text);font-weight:600"></span>
+      <span style="font-size:0.78rem;color:var(--text3)" id="suporte-cliente-email"></span>
     </div>
   </div>
 </div>
@@ -1086,11 +1228,9 @@ window.initApp = function(dadosFirebase) {
     state.perdas      = defaultPerdas;
     state.custosFixos = defaultCustosFixos;
   }
-  // Mostrar aviso se Firebase não configurado
-  if (!window.firebaseConfigurado) {
-    const el = document.getElementById('status-firebase');
-    if (el) el.style.display = 'block';
-  }
+  // Firebase sempre configurado (credenciais fixas no arquivo)
+  const elModoLocal = document.getElementById('status-firebase');
+  if (elModoLocal) elModoLocal.style.display = 'none';
   renderAll();
   calcPerda();
   calcDespFat();
