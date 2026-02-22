@@ -76,6 +76,10 @@
   };
 
   // ---- CRIAR CLIENTE (admin) ----
+  // Segunda instância do Firebase só para criar usuários sem deslogar o admin
+  const app2 = initializeApp(firebaseConfig, "secondary");
+  const auth2 = getAuth(app2);
+
   window.criarCliente = async function() {
     const nome = document.getElementById("admin-nome").value.trim();
     const email = document.getElementById("admin-email").value.trim();
@@ -88,14 +92,14 @@
       erroEl.style.display = "block"; return;
     }
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, senha);
+      // Cria o usuário na instância secundária — não afeta a sessão do admin
+      const cred = await createUserWithEmailAndPassword(auth2, email, senha);
       // Salva info do cliente no Firestore
       await setDoc(doc(db, "clientes", cred.user.uid), {
         nome, email, criadoEm: new Date().toISOString(), uid: cred.user.uid
       });
-      // Faz logout do cliente recém-criado e volta pro admin
-      await signOut(auth);
-      await signInWithEmailAndPassword(auth, ADMIN_EMAIL, window._adminSenha || "");
+      // Desloga da instância secundária (não afeta o admin)
+      await signOut(auth2);
       document.getElementById("admin-nome").value = "";
       document.getElementById("admin-email").value = "";
       document.getElementById("admin-senha").value = "";
