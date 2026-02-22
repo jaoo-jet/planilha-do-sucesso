@@ -305,9 +305,21 @@
       const dados = snap.exists() ? snap.data() : null;
       const headerUser = document.getElementById("header-user");
       if (headerUser) headerUser.textContent = "👁️ " + email;
+      // Força reinicialização completa do estado antes de carregar os dados do cliente
+      // Reseta o estado para não misturar dados entre clientes
+      state.insumos = [];
+      state.fichas = [];
+      state.perdas = [];
+      state.custosFixos = [];
+      state.editingFichaId = null;
       if (typeof window.initApp === "function") window.initApp(dados);
+      if (!dados) {
+        const infoEl = document.getElementById("suporte-cliente-nome");
+        if (infoEl) infoEl.textContent = nome + " (sem dados salvos ainda)";
+      }
     } catch(e) {
       console.error("Erro ao carregar dados do cliente:", e);
+      alert("Erro ao carregar dados: " + e.message);
     }
   };
 
@@ -1117,13 +1129,14 @@ function salvarNovaSenha() {
 
 <script>
 // ===================== STATE =====================
-let state = {
+window.state = {
   insumos: [],
   fichas: [],
   perdas: [],
   custosFixos: [],
   editingFichaId: null
-};
+}
+let state = window.state;;
 
 // ===================== INITIAL DATA (from spreadsheet) =====================
 const defaultInsumos = [
