@@ -429,6 +429,23 @@
   .profit-negative { color: var(--red); }
 </style>
 
+<script>
+function abrirModalSenha(uid, nome) {
+  document.getElementById('modal-senha-uid').value = uid;
+  document.getElementById('modal-senha-nome').textContent = nome;
+  document.getElementById('modal-senha-nova').value = '';
+  document.getElementById('modal-senha-erro').style.display = 'none';
+  document.getElementById('modal-senha-ok').style.display = 'none';
+  document.getElementById('modal-alterar-senha').style.display = 'flex';
+}
+function fecharModalSenha() {
+  document.getElementById('modal-alterar-senha').style.display = 'none';
+}
+function salvarNovaSenha() {
+  if (window._salvarNovaSenha) window._salvarNovaSenha();
+  else alert('Aguarde o sistema carregar e tente novamente.');
+}
+</script>
 </head>
 <body>
 
@@ -1850,22 +1867,6 @@ if (window._dadosIniciais !== undefined) {
   </div>
 </div>
 
-<script>
-function abrirModalSenha(uid, nome) {
-  document.getElementById('modal-senha-uid').value = uid;
-  document.getElementById('modal-senha-nome').textContent = nome;
-  document.getElementById('modal-senha-nova').value = '';
-  document.getElementById('modal-senha-erro').style.display = 'none';
-  document.getElementById('modal-senha-ok').style.display = 'none';
-  var m = document.getElementById('modal-alterar-senha');
-  m.style.display = 'flex';
-}
-function fecharModalSenha() {
-  document.getElementById('modal-alterar-senha').style.display = 'none';
-}
-function salvarNovaSenha() {
-  if (window._salvarNovaSenha) window._salvarNovaSenha();
-}
-</script>
+
 
 </html>
