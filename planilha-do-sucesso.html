@@ -196,21 +196,9 @@
       return;
     }
 
-    // Check if there's a pending password change for this user
-    if (user.email !== ADMIN_EMAIL) {
-      try {
-        const clienteSnap = await getDoc(doc(db, 'clientes', user.uid));
-        if (clienteSnap.exists() && clienteSnap.data().senhaPendente) {
-          const novaSenha = clienteSnap.data().senhaPendente;
-          await fbUpdatePassword(user, novaSenha);
-          await setDoc(doc(db, 'clientes', user.uid), { senhaPendente: null }, { merge: true });
-        }
-      } catch(e) { console.log('Senha pendente não aplicada:', e); }
-    }
-
+    // Identifica o tipo de usuário
     if (user.email === ADMIN_EMAIL) {
       // É admin: mostrar painel admin
-      window._adminSenha = ""; // limpa por segurança
       document.getElementById("admin-screen").style.display = "block";
       carregarClientes();
       return;
@@ -222,6 +210,16 @@
       carregarClientesSuporte();
       return;
     }
+
+    // É cliente: verificar senha pendente e mostrar app
+    try {
+      const clienteSnap = await getDoc(doc(db, 'clientes', user.uid));
+      if (clienteSnap.exists() && clienteSnap.data().senhaPendente) {
+        const novaSenha = clienteSnap.data().senhaPendente;
+        await fbUpdatePassword(user, novaSenha);
+        await setDoc(doc(db, 'clientes', user.uid), { senhaPendente: null }, { merge: true });
+      }
+    } catch(e) { console.log('Senha pendente não aplicada:', e); }
 
     // É cliente: mostrar o app
     document.getElementById("app-screen").style.display = "block";
