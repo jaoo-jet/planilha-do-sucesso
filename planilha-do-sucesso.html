@@ -144,7 +144,7 @@
     document.getElementById('modal-alterar-senha').classList.add('active');
   };
 
-  window.salvarNovaSenha = async function() {
+  window._salvarNovaSenha = async function() {
     const uid = document.getElementById('modal-senha-uid').value;
     const novaSenha = document.getElementById('modal-senha-nova').value;
     const erroEl = document.getElementById('modal-senha-erro');
@@ -1823,6 +1823,44 @@ if (window._dadosIniciais !== undefined) {
   // Garante que calcPerda e calcDespFat rodem para mostrar valores iniciais nos campos
   calcPerda();
   calcDespFat();
+}
+</script>
+
+
+<!-- MODAL ALTERAR SENHA CLIENTE -->
+<div class="modal-overlay" id="modal-alterar-senha" style="z-index:9999;position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:440px">
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem">🔑 Alterar Senha do Cliente</h3>
+    <p style="color:var(--text2);font-size:0.88rem;margin-bottom:1.25rem">Cliente: <strong id="modal-senha-nome" style="color:var(--accent)"></strong></p>
+    <input type="hidden" id="modal-senha-uid">
+    <div id="modal-senha-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
+    <div id="modal-senha-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--green)"></div>
+    <div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:1.5rem">
+      <label style="font-size:0.8rem;color:var(--text2);font-weight:500">Nova Senha</label>
+      <input type="password" id="modal-senha-nova" placeholder="Mínimo 6 caracteres" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:0.65rem 0.9rem;font-size:0.9rem" onkeydown="if(event.key==='Enter') salvarNovaSenha()">
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end">
+      <button onclick="fecharModalSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">Cancelar</button>
+      <button onclick="salvarNovaSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:none;background:var(--accent);color:#000;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">💾 Salvar Nova Senha</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirModalSenha(uid, nome) {
+  document.getElementById('modal-senha-uid').value = uid;
+  document.getElementById('modal-senha-nome').textContent = nome;
+  document.getElementById('modal-senha-nova').value = '';
+  document.getElementById('modal-senha-erro').style.display = 'none';
+  document.getElementById('modal-senha-ok').style.display = 'none';
+  var m = document.getElementById('modal-alterar-senha');
+  m.style.display = 'flex';
+}
+function fecharModalSenha() {
+  document.getElementById('modal-alterar-senha').style.display = 'none';
+}
+function salvarNovaSenha() {
+  if (window._salvarNovaSenha) window._salvarNovaSenha();
 }
 </script>
 
