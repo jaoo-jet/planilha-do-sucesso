@@ -1408,9 +1408,10 @@ function calcPrecoFicha(ficha) {
   const afterProducao = custoBase * (1 + producaoPct);
   const afterFixo     = afterProducao * (1 + fixoPct);
   const afterVariavel = afterFixo * (1 + variavelPct);
-  const afterTaxa     = afterVariavel * (1 + taxaPct);
-  const afterMargem   = afterTaxa / (1 - margemPct);
+  const afterMargem   = afterVariavel / (1 - margemPct);
   const precoSugerido = afterMargem + embalagem;
+  // Taxa calculada sobre o Preço Cardápio
+  const valorTaxa     = cardapio > 0 ? cardapio * taxaPct : precoSugerido * taxaPct;
   const precoIfood18  = precoSugerido / (1 - ifood18Pct);
   const precoIfood28  = precoSugerido / (1 - ifood28Pct);
   const lucroRs       = cardapio > 0 ? cardapio - precoSugerido : null;
@@ -1876,9 +1877,10 @@ function calcPreco() {
   const afterProducao = c1 * (1 + producaoPct);
   const afterFixo = afterProducao * (1 + fixoPct);
   const afterVariavel = afterFixo * (1 + variavelPct);
-  const afterTaxa = afterVariavel * (1 + taxaPct);
-  const afterMargem = afterTaxa / (1 - margemPct);
+  const afterMargem = afterVariavel / (1 - margemPct);
   const precoSugerido = afterMargem + embalagem;
+  // Taxa calculada sobre o Preço Cardápio (desconto do que você recebe)
+  const valorTaxa = cardapio > 0 ? cardapio * taxaPct : precoSugerido * taxaPct;
   const precoIfood18 = precoSugerido / (1 - ifood18Pct);
   const precoIfood28 = precoSugerido / (1 - ifood28Pct);
 
@@ -1889,8 +1891,8 @@ function calcPreco() {
   const unitProducao   = afterProducao - c1;
   const unitFixo       = afterFixo - afterProducao;
   const unitVariavel   = afterVariavel - afterFixo;
-  const unitTaxa       = afterTaxa - afterVariavel;
-  const unitMargem     = afterMargem - afterTaxa;
+  const unitTaxa       = valorTaxa;
+  const unitMargem     = afterMargem - afterVariavel;
   const unitEmbalagem  = embalagem;
 
   // % de cada componente sobre o preço sugerido
