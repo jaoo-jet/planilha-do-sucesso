@@ -52,10 +52,19 @@
   window.fazerLogin = async function() {
     const email = document.getElementById("login-email").value.trim();
     const senha = document.getElementById("login-senha").value;
+    const lembrar = document.getElementById("lembrar-email").checked;
     const erroEl = document.getElementById("login-erro");
     const btnEl = document.getElementById("btn-login");
     erroEl.style.display = "none";
     btnEl.textContent = "Entrando..."; btnEl.disabled = true;
+    // Salvar ou remover e-mail do localStorage
+    if (lembrar) {
+      localStorage.setItem("login_email_salvo", email);
+      localStorage.setItem("login_lembrar", "sim");
+    } else {
+      localStorage.removeItem("login_email_salvo");
+      localStorage.removeItem("login_lembrar");
+    }
     try {
       await signInWithEmailAndPassword(auth, email, senha);
     } catch(e) {
@@ -255,13 +264,25 @@
       // Resetar botão de login
       const btnLogin = document.getElementById("btn-login");
       if (btnLogin) { btnLogin.textContent = "Entrar"; btnLogin.disabled = false; }
-      // Limpar campos
-      const emailEl = document.getElementById("login-email");
-      const senhaEl = document.getElementById("login-senha");
-      const erroEl  = document.getElementById("login-erro");
-      if (emailEl) emailEl.value = "";
+      // Restaurar e-mail salvo se existir
+      const emailSalvo = localStorage.getItem("login_email_salvo");
+      const lembrar    = localStorage.getItem("login_lembrar") === "sim";
+      const emailEl    = document.getElementById("login-email");
+      const senhaEl    = document.getElementById("login-senha");
+      const erroEl     = document.getElementById("login-erro");
+      const lembrarEl  = document.getElementById("lembrar-email");
+      if (emailEl) emailEl.value = lembrar && emailSalvo ? emailSalvo : "";
       if (senhaEl) senhaEl.value = "";
       if (erroEl)  erroEl.style.display = "none";
+      if (lembrarEl) lembrarEl.checked = lembrar;
+      // Focar no campo correto
+      setTimeout(() => {
+        if (lembrar && emailSalvo) {
+          document.getElementById("login-senha")?.focus();
+        } else {
+          document.getElementById("login-email")?.focus();
+        }
+      }, 100);
       return;
     }
 
@@ -542,6 +563,10 @@ function filtrarClientesSuporte(v) {
       <div style="display:flex;flex-direction:column;gap:1rem">
         <div class="form-group"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
         <div class="form-group"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
+          <input type="checkbox" id="lembrar-email" style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer">
+          <label for="lembrar-email" style="font-size:0.82rem;color:#a09b93;cursor:pointer;margin:0">Lembrar meu e-mail</label>
+        </div>
         <button class="btn btn-primary" style="width:100%;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
       </div>
     </div>
