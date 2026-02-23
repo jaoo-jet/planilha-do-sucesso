@@ -820,6 +820,10 @@ function esqueceuSenha() {
               <input type="number" id="preco-cardapio" value="0" step="0.01" oninput="calcPreco()">
             </div>
           </div>
+          <div style="margin-top:1.25rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="salvarPrecificacao()" style="display:flex;align-items:center;gap:0.4rem">💾 Salvar Precificação</button>
+            <span id="preco-salvo-ok" style="font-size:0.82rem;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Salvo!</span>
+          </div>
         </div>
       </div>
 
@@ -1281,18 +1285,19 @@ function calcCustoFicha(ficha) {
 }
 
 function calcCustoTotal(ficha) {
-  // Mesma lógica da tela de Precificação — usa os valores atuais dos inputs
+  // Usa params salvos na ficha se existirem, senão usa os valores dos inputs
+  const p = ficha.precificacao || {};
   const custoBase    = calcCustoFicha(ficha);
-  const producaoPct  = (parseFloat(document.getElementById('preco-producao')?.value) || 20) / 100;
-  const fixoPct      = (parseFloat(document.getElementById('preco-fixo')?.value)     || 30) / 100;
-  const variavelPct  = (parseFloat(document.getElementById('preco-variavel')?.value) || 10) / 100;
-  const taxaPct      = (parseFloat(document.getElementById('preco-taxa')?.value)     || 5)  / 100;
-  const embalagem    = parseFloat(document.getElementById('preco-embalagem')?.value) || 1.5;
+  const producaoPct  = ((p.producao  !== undefined ? p.producao  : parseFloat(document.getElementById('preco-producao')?.value)  || 20)) / 100;
+  const fixoPct      = ((p.fixo      !== undefined ? p.fixo      : parseFloat(document.getElementById('preco-fixo')?.value)      || 30)) / 100;
+  const variavelPct  = ((p.variavel  !== undefined ? p.variavel  : parseFloat(document.getElementById('preco-variavel')?.value)  || 10)) / 100;
+  const taxaPct      = ((p.taxa      !== undefined ? p.taxa      : parseFloat(document.getElementById('preco-taxa')?.value)      || 5))  / 100;
+  const embalagem    =  (p.embalagem !== undefined ? p.embalagem : parseFloat(document.getElementById('preco-embalagem')?.value) || 1.5);
   const afterProducao = custoBase * (1 + producaoPct);
   const afterFixo     = afterProducao * (1 + fixoPct);
   const afterVariavel = afterFixo * (1 + variavelPct);
   const afterTaxa     = afterVariavel * (1 + taxaPct);
-  return afterTaxa + embalagem; // custo total antes da margem de lucro
+  return afterTaxa + embalagem;
 }
 
 // ===================== INSUMOS =====================
@@ -1660,10 +1665,42 @@ function renderDashboard() {
 function updatePrecificacao() {
   const fichaId = parseInt(document.getElementById('preco-select-ficha').value);
   const ficha = state.fichas.find(f => f.id === fichaId);
-  if (ficha && ficha.precoCardapio > 0) {
-    document.getElementById('preco-cardapio').value = ficha.precoCardapio;
+  if (ficha) {
+    const p = ficha.precificacao || {};
+    if (ficha.precoCardapio > 0) document.getElementById('preco-cardapio').value = ficha.precoCardapio;
+    if (p.producao   !== undefined) document.getElementById('preco-producao').value  = p.producao;
+    if (p.fixo       !== undefined) document.getElementById('preco-fixo').value      = p.fixo;
+    if (p.variavel   !== undefined) document.getElementById('preco-variavel').value  = p.variavel;
+    if (p.margem     !== undefined) document.getElementById('preco-margem').value    = p.margem;
+    if (p.embalagem  !== undefined) document.getElementById('preco-embalagem').value = p.embalagem;
+    if (p.taxa       !== undefined) document.getElementById('preco-taxa').value      = p.taxa;
+    if (p.ifood18    !== undefined) document.getElementById('preco-ifood18').value   = p.ifood18;
+    if (p.ifood28    !== undefined) document.getElementById('preco-ifood28').value   = p.ifood28;
+    if (p.cardapio   !== undefined) document.getElementById('preco-cardapio').value  = p.cardapio;
   }
   calcPreco();
+}
+
+function salvarPrecificacao() {
+  const fichaId = parseInt(document.getElementById('preco-select-ficha').value);
+  const ficha = state.fichas.find(f => f.id === fichaId);
+  if (!ficha) { alert('Selecione uma ficha técnica primeiro.'); return; }
+  ficha.precificacao = {
+    producao:  parseFloat(document.getElementById('preco-producao').value)  || 0,
+    fixo:      parseFloat(document.getElementById('preco-fixo').value)      || 0,
+    variavel:  parseFloat(document.getElementById('preco-variavel').value)  || 0,
+    margem:    parseFloat(document.getElementById('preco-margem').value)    || 0,
+    embalagem: parseFloat(document.getElementById('preco-embalagem').value) || 0,
+    taxa:      parseFloat(document.getElementById('preco-taxa').value)      || 0,
+    ifood18:   parseFloat(document.getElementById('preco-ifood18').value)   || 18,
+    ifood28:   parseFloat(document.getElementById('preco-ifood28').value)   || 28,
+    cardapio:  parseFloat(document.getElementById('preco-cardapio').value)  || 0,
+  };
+  ficha.precoCardapio = ficha.precificacao.cardapio;
+  save();
+  renderDashboard();
+  const okEl = document.getElementById('preco-salvo-ok');
+  if (okEl) { okEl.style.opacity = '1'; setTimeout(() => okEl.style.opacity = '0', 2500); }
 }
 
 function calcPreco() {
