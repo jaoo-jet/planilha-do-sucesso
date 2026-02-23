@@ -1095,7 +1095,7 @@ function esqueceuSenha() {
 
 <!-- MODAL: EDITAR FICHA -->
 <div class="modal-overlay" id="modal-edit-ficha" onclick="if(event.target===this) this.classList.remove('active')">
-  <div class="modal" style="max-width:820px; width:95%">
+  <div class="modal" style="max-width:1000px; width:95%; max-height:92vh; min-height:600px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
       <h3 style="margin:0">✏️ Editar Ficha Técnica</h3>
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById('modal-edit-ficha').classList.remove('active')">✕ Fechar</button>
@@ -1131,14 +1131,14 @@ function esqueceuSenha() {
       </div>
     </div>
 
-    <div style="margin-bottom:0.5rem;display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;padding:0 0.75rem">
+    <div style="margin-bottom:0.5rem;display:grid;grid-template-columns:3fr 1fr 1fr auto;gap:0.6rem;padding:0 0.75rem">
       <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Insumo</span>
       <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Quantidade</span>
       <span style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Custo</span>
       <span></span>
     </div>
 
-    <div id="edit-ing-list" style="max-height:360px;overflow-y:auto;padding-right:2px"></div>
+    <div id="edit-ing-list" style="max-height:420px;overflow-y:auto;padding-right:4px" style="max-height:360px;overflow-y:auto;padding-right:2px"></div>
 
     <div class="modal-actions" style="margin-top:1.5rem">
       <button class="btn btn-secondary" onclick="document.getElementById('modal-edit-ficha').classList.remove('active')">Cancelar</button>
@@ -1497,7 +1497,7 @@ function addEditIngRow(selectedId = '', qtd = 100) {
   const container = document.getElementById('edit-ing-list');
   const div = document.createElement('div');
   div.className = 'edit-ing-row';
-  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:0.6rem;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.5rem';
+  div.style.cssText = 'display:grid;grid-template-columns:3fr 1fr 1fr auto;gap:0.6rem;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;margin-bottom:0.5rem';
   
   const insumo = selectedId ? state.insumos.find(i => i.id === parseInt(selectedId)) : null;
   const valorGrama = insumo ? getValorGrama(insumo) : 0;
