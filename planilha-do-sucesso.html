@@ -252,6 +252,16 @@
 
     if (!user) {
       document.getElementById("login-screen").style.display = "flex";
+      // Resetar botão de login
+      const btnLogin = document.getElementById("btn-login");
+      if (btnLogin) { btnLogin.textContent = "Entrar"; btnLogin.disabled = false; }
+      // Limpar campos
+      const emailEl = document.getElementById("login-email");
+      const senhaEl = document.getElementById("login-senha");
+      const erroEl  = document.getElementById("login-erro");
+      if (emailEl) emailEl.value = "";
+      if (senhaEl) senhaEl.value = "";
+      if (erroEl)  erroEl.style.display = "none";
       return;
     }
 
