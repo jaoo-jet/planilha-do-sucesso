@@ -76,6 +76,52 @@
 
   window.fazerLogout = async function() { await signOut(auth); };
 
+  // ===== CONFIG BOTÃO DE COMPRA =====
+  async function carregarConfigCompra() {
+    try {
+      const snap = await getDoc(doc(db, "config", "compra"));
+      if (snap.exists()) {
+        const d = snap.data();
+        // Aplica na tela de login
+        const banner = document.getElementById("login-buy-banner");
+        const linkEl = document.getElementById("login-buy-link");
+        if (d.ativo && d.link) {
+          if (banner) banner.style.display = "block";
+          if (linkEl) {
+            linkEl.href = d.link;
+            linkEl.textContent = d.texto || "🛒 Comprar Planilha do Sucesso";
+          }
+        }
+        // Preenche painel suporte se estiver aberto
+        const inp = document.getElementById("suporte-buy-link");
+        const txt = document.getElementById("suporte-buy-text");
+        const chk = document.getElementById("suporte-buy-ativo");
+        if (inp) inp.value = d.link || "";
+        if (txt) txt.value = d.texto || "";
+        if (chk) chk.checked = !!d.ativo;
+      }
+    } catch(e) {}
+  }
+
+  window.salvarConfigCompra = async function() {
+    const link  = document.getElementById("suporte-buy-link").value.trim();
+    const texto = document.getElementById("suporte-buy-text").value.trim() || "🛒 Comprar Planilha do Sucesso";
+    const ativo = document.getElementById("suporte-buy-ativo").checked;
+    try {
+      await setDoc(doc(db, "config", "compra"), { link, texto, ativo });
+      // Atualiza login banner em tempo real
+      const banner = document.getElementById("login-buy-banner");
+      const linkEl = document.getElementById("login-buy-link");
+      if (banner) banner.style.display = ativo && link ? "block" : "none";
+      if (linkEl) { linkEl.href = link; linkEl.textContent = texto; }
+      const okEl = document.getElementById("compra-salvo-ok");
+      if (okEl) { okEl.style.opacity = "1"; setTimeout(() => okEl.style.opacity = "0", 2500); }
+    } catch(e) { alert("Erro ao salvar: " + e.message); }
+  };
+
+  // Carrega config ao iniciar
+  carregarConfigCompra();
+
   window.esqueceuSenha = async function() {
     const email = document.getElementById("login-email").value.trim();
     const okEl  = document.getElementById("reset-ok");
@@ -345,7 +391,17 @@
     } catch(e) {}
 
     const snap = await getDoc(doc(db, "clientes", user.uid, "dados", "planilha"));
-    const dados = snap.exists() ? snap.data() : null;
+    let dados = snap.exists() ? snap.data() : null;
+
+    // Primeiro acesso: salva os dados padrão automaticamente
+    if (!dados && typeof window.getDefaultData === "function") {
+      dados = window.getDefaultData();
+      try {
+        await setDoc(doc(db, "clientes", user.uid, "dados", "planilha"), dados);
+        console.log("✅ Dados padrão salvos para novo cliente:", user.email);
+      } catch(e) { console.error("Erro ao salvar dados padrão:", e); }
+    }
+
     window._dadosIniciais = dados;
     if (typeof window.initApp === "function") window.initApp(dados);
   });
@@ -388,6 +444,9 @@ function enviarEmailSenha(email) {
 }
 function esqueceuSenha() {
   if (window.esqueceuSenha) window.esqueceuSenha();
+}
+function salvarConfigCompra() {
+  if (window.salvarConfigCompra) window.salvarConfigCompra();
 }
 </script>
 <style>
@@ -610,6 +669,13 @@ function esqueceuSenha() {
         <button onclick="esqueceuSenha()" style="background:none;border:none;color:#a09b93;font-size:0.82rem;cursor:pointer;text-decoration:underline;width:100%;margin-top:0.5rem;font-family:'DM Sans',sans-serif">Esqueci minha senha</button>
       </div>
     </div>
+    <div id="login-buy-banner" style="margin-top:1.5rem;padding:1rem;background:linear-gradient(135deg,rgba(245,166,35,0.12),rgba(245,166,35,0.05));border:1px solid rgba(245,166,35,0.3);border-radius:12px;text-align:center;display:none">
+      <div style="font-size:0.8rem;color:#a09b93;margin-bottom:0.5rem">Ainda não tem acesso?</div>
+      <a id="login-buy-link" href="https://pay.kiwify.com.br/34AVZ5k" target="_blank"
+         style="display:inline-block;background:#f5a623;color:#0f0e0d;font-weight:700;font-size:0.9rem;padding:0.6rem 1.5rem;border-radius:8px;text-decoration:none;font-family:'Syne',sans-serif">
+        🛒 Comprar Planilha do Sucesso
+      </a>
+    </div>
     <p style="text-align:center;margin-top:1.5rem;font-size:0.78rem;color:#6b6560">Planilha do Sucesso © 2025</p>
   </div>
 </div>
@@ -638,6 +704,30 @@ function esqueceuSenha() {
         <button class="btn btn-primary" style="margin-top:1rem" onclick="criarCliente()">Criar Cliente</button>
       </div>
     </div>
+    <div class="panel" style="margin-bottom:1.5rem">
+      <div class="panel-header"><h3>🛒 Botão de Compra</h3></div>
+      <div class="panel-body">
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:1rem">Configure o link e o texto do botão de compra que aparece na tela de login.</p>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label>Link de pagamento (Hotmart, Kiwify, etc)</label>
+            <input type="text" id="suporte-buy-link" placeholder="https://pay.kiwify.com.br/34AVZ5k" value="https://pay.kiwify.com.br/34AVZ5k" style="width:100%">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Texto do botão</label>
+            <input type="text" id="suporte-buy-text" placeholder="🛒 Comprar Planilha do Sucesso" style="width:100%">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem">
+          <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;cursor:pointer">
+            <input type="checkbox" id="suporte-buy-ativo" style="width:16px;height:16px;accent-color:#f5a623"> Exibir botão na tela de login
+          </label>
+          <button class="btn btn-primary" onclick="salvarConfigCompra()">💾 Salvar</button>
+          <span id="compra-salvo-ok" style="font-size:0.82rem;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Salvo!</span>
+        </div>
+      </div>
+    </div>
+
     <div class="panel">
       <div class="panel-header"><h3>👥 Clientes Cadastrados</h3></div>
       <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th>Ações</th></tr></thead><tbody id="admin-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b6560">Carregando...</td></tr></tbody></table></div>
@@ -1196,6 +1286,15 @@ const defaultPerdas = [
   { nome: 'BACON',                     kgCompra: 1,   valorKg: 30,   kgCozido: 0.6, perdaKg: 0.4,  perdaPct: 0.4,    valorKgCozido: 50,     valor100g: 5.0   },
   { nome: 'COSTELA (Blend)',           kgCompra: 1,   valorKg: 30,   kgCozido: 0.68,perdaKg: 0.32, perdaPct: 0.32,   valorKgCozido: 44.118, valor100g: 4.412 },
 ];
+
+window.getDefaultData = function() {
+  return {
+    insumos:     JSON.parse(JSON.stringify(defaultInsumos)),
+    fichas:      JSON.parse(JSON.stringify(defaultFichas)),
+    perdas:      JSON.parse(JSON.stringify(defaultPerdas)),
+    custosFixos: JSON.parse(JSON.stringify(defaultCustosFixos)),
+  };
+};
 
 window.initApp = function(dadosFirebase) {
   if (dadosFirebase) {
