@@ -1280,6 +1280,21 @@ function calcCustoFicha(ficha) {
   }, 0);
 }
 
+function calcCustoTotal(ficha) {
+  // Mesma lógica da tela de Precificação — usa os valores atuais dos inputs
+  const custoBase    = calcCustoFicha(ficha);
+  const producaoPct  = (parseFloat(document.getElementById('preco-producao')?.value) || 20) / 100;
+  const fixoPct      = (parseFloat(document.getElementById('preco-fixo')?.value)     || 30) / 100;
+  const variavelPct  = (parseFloat(document.getElementById('preco-variavel')?.value) || 10) / 100;
+  const taxaPct      = (parseFloat(document.getElementById('preco-taxa')?.value)     || 5)  / 100;
+  const embalagem    = parseFloat(document.getElementById('preco-embalagem')?.value) || 1.5;
+  const afterProducao = custoBase * (1 + producaoPct);
+  const afterFixo     = afterProducao * (1 + fixoPct);
+  const afterVariavel = afterFixo * (1 + variavelPct);
+  const afterTaxa     = afterVariavel * (1 + taxaPct);
+  return afterTaxa + embalagem; // custo total antes da margem de lucro
+}
+
 // ===================== INSUMOS =====================
 function renderInsumos(filter='') {
   const tbody = document.getElementById('insumos-table-body');
@@ -1618,16 +1633,20 @@ function renderDashboard() {
     return;
   }
   tbody.innerHTML = state.fichas.map(f => {
-    const custo = calcCustoFicha(f);
-    const cardapio = f.precoCardapio || 0;
-    const lucroRs = cardapio - custo;
-    const lucroPct = cardapio > 0 ? lucroRs / cardapio : 0;
-    const cls = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
-    const status = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
-    const label = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
+    const custoIngr  = calcCustoFicha(f);
+    const custoTotal = calcCustoTotal(f);
+    const cardapio   = f.precoCardapio || 0;
+    const lucroRs    = cardapio - custoTotal;
+    const lucroPct   = cardapio > 0 ? lucroRs / cardapio : 0;
+    const cls        = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
+    const status     = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
+    const label      = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
     return `<tr>
       <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
-      <td>${fmt(custo)}</td>
+      <td>
+        <div style="font-weight:600;color:var(--accent)">${fmt(custoTotal)}</div>
+        <div style="font-size:0.72rem;color:var(--text3)">ingredientes: ${fmt(custoIngr)}</div>
+      </td>
       <td>${fmt(cardapio)}</td>
       <td class="${cls}">${fmt(lucroRs)}</td>
       <td class="${cls}">${pct(lucroPct)}</td>
