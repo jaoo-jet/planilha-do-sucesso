@@ -722,6 +722,30 @@ function esqueceuSenha() {
         </table>
       </div>
     </div>
+
+    <div class="panel" style="margin-top:1.5rem">
+      <div class="panel-header"><h3>💰 Resultado da Precificação por Item</h3></div>
+      <div class="panel-body" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Custo Ingredientes</th>
+              <th>Preço Sugerido</th>
+              <th>Preço Cardápio</th>
+              <th>iFood 18%</th>
+              <th>iFood 28%</th>
+              <th>Lucro R$</th>
+              <th>Lucro %</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="dash-precificacao-body">
+            <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- INSUMOS -->
@@ -1632,6 +1656,54 @@ function renderDashboard() {
       <td class="${cls}">${pct(lucroPct)}</td>
       <td><span class="badge ${status}">${label}</span></td>
     </tr>`;
+  }).join('');
+
+  // ---- Tabela Precificação por Item ----
+  const precBody = document.getElementById('dash-precificacao-body');
+  if (!precBody) return;
+
+  // Pegar percentuais atuais da tela de precificação (ou usar defaults)
+  const producaoPct = (parseFloat(document.getElementById('preco-producao')?.value) || 20) / 100;
+  const fixoPct     = (parseFloat(document.getElementById('preco-fixo')?.value)     || 30) / 100;
+  const variavelPct = (parseFloat(document.getElementById('preco-variavel')?.value) || 10) / 100;
+  const margemPct   = (parseFloat(document.getElementById('preco-margem')?.value)   || 30) / 100;
+  const embalagem   = parseFloat(document.getElementById('preco-embalagem')?.value) || 0;
+  const taxaPct     = (parseFloat(document.getElementById('preco-taxa')?.value)     || 0)  / 100;
+  const ifood18Pct  = (parseFloat(document.getElementById('preco-ifood18')?.value)  || 18) / 100;
+  const ifood28Pct  = (parseFloat(document.getElementById('preco-ifood28')?.value)  || 28) / 100;
+
+  if (!state.fichas.length) {
+    precBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>';
+    return;
+  }
+
+  precBody.innerHTML = state.fichas.map(f => {
+    const custoBase      = calcCustoFicha(f);
+    const afterProducao  = custoBase * (1 + producaoPct);
+    const afterFixo      = afterProducao * (1 + fixoPct);
+    const afterVariavel  = afterFixo * (1 + variavelPct);
+    const afterTaxa      = afterVariavel * (1 + taxaPct);
+    const afterMargem    = afterTaxa / (1 - margemPct);
+    const precoSugerido  = afterMargem + embalagem;
+    const precoIfood18   = precoSugerido / (1 - ifood18Pct);
+    const precoIfood28   = precoSugerido / (1 - ifood28Pct);
+    const cardapio       = f.precoCardapio || 0;
+    const lucroRs        = cardapio > 0 ? cardapio - precoSugerido : null;
+    const lucroPct2      = cardapio > 0 ? lucroRs / cardapio : null;
+    const cls            = lucroPct2 !== null ? (lucroRs >= 0 ? 'profit-positive' : 'profit-negative') : '';
+    const statusClass    = lucroPct2 !== null ? (lucroPct2 > 0.4 ? 'badge-green' : lucroPct2 > 0.2 ? 'badge-orange' : 'badge-red') : 'badge-orange';
+    const statusLabel    = lucroPct2 !== null ? (lucroPct2 > 0.4 ? 'Ótimo' : lucroPct2 > 0.2 ? 'Regular' : 'Risco') : '—';
+    return \`<tr>
+      <td><strong>\${f.nome}</strong> <span class="tag">\${f.categoria}</span></td>
+      <td style="color:var(--text2)">\${fmt(custoBase)}</td>
+      <td style="color:var(--accent);font-weight:700">\${fmt(precoSugerido)}</td>
+      <td>\${cardapio > 0 ? fmt(cardapio) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td style="color:var(--text2)">\${fmt(precoIfood18)}</td>
+      <td style="color:var(--text2)">\${fmt(precoIfood28)}</td>
+      <td class="\${cls}">\${lucroPct2 !== null ? fmt(lucroRs) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td class="\${cls}">\${lucroPct2 !== null ? pct(lucroPct2) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td><span class="badge \${statusClass}">\${statusLabel}</span></td>
+    </tr>\`;
   }).join('');
 }
 
