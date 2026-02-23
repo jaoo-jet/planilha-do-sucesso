@@ -1284,27 +1284,41 @@ function calcCustoFicha(ficha) {
   }, 0);
 }
 
-function calcCustoTotal(ficha) {
-  // Calcula o Preço Sugerido completo — igual ao da tela de Precificação
+function calcPrecoFicha(ficha) {
+  // Cálculo unificado — igual ao da tela Formação de Preço
+  // Retorna objeto com todos os valores calculados
   const p = ficha.precificacao || {};
   const def = (key, fallbackId, fallbackVal) =>
     (p[key] !== undefined ? p[key] : parseFloat(document.getElementById(fallbackId)?.value) || fallbackVal);
 
-  const custoBase    = calcCustoFicha(ficha);
-  const producaoPct  = def('producao',  'preco-producao',  20) / 100;
-  const fixoPct      = def('fixo',      'preco-fixo',      30) / 100;
-  const variavelPct  = def('variavel',  'preco-variavel',  10) / 100;
-  const taxaPct      = def('taxa',      'preco-taxa',       5) / 100;
-  const margemPct    = def('margem',    'preco-margem',    40) / 100;
-  const embalagem    = def('embalagem', 'preco-embalagem', 1.5);
+  const custoBase   = calcCustoFicha(ficha);
+  const producaoPct = def('producao',  'preco-producao',  20) / 100;
+  const fixoPct     = def('fixo',      'preco-fixo',      30) / 100;
+  const variavelPct = def('variavel',  'preco-variavel',  10) / 100;
+  const taxaPct     = def('taxa',      'preco-taxa',       5) / 100;
+  const margemPct   = def('margem',    'preco-margem',    40) / 100;
+  const embalagem   = def('embalagem', 'preco-embalagem', 1.5);
+  const ifood18Pct  = def('ifood18',   'preco-ifood18',   18) / 100;
+  const ifood28Pct  = def('ifood28',   'preco-ifood28',   28) / 100;
+  const cardapio    = ficha.precoCardapio || 0;
 
-  const afterProducao  = custoBase * (1 + producaoPct);
-  const afterFixo      = afterProducao * (1 + fixoPct);
-  const afterVariavel  = afterFixo * (1 + variavelPct);
-  const afterTaxa      = afterVariavel * (1 + taxaPct);
-  const afterEmbalagem = afterTaxa + embalagem;
-  const precoSugerido  = afterEmbalagem / (1 - margemPct); // inclui margem de lucro
-  return precoSugerido;
+  // Mesma sequência do calcPreco()
+  const afterProducao = custoBase * (1 + producaoPct);
+  const afterFixo     = afterProducao * (1 + fixoPct);
+  const afterVariavel = afterFixo * (1 + variavelPct);
+  const afterTaxa     = afterVariavel * (1 + taxaPct);
+  const afterMargem   = afterTaxa / (1 - margemPct);
+  const precoSugerido = afterMargem + embalagem;
+  const precoIfood18  = precoSugerido / (1 - ifood18Pct);
+  const precoIfood28  = precoSugerido / (1 - ifood28Pct);
+  const lucroRs       = cardapio > 0 ? cardapio - precoSugerido : null;
+  const lucroPct      = cardapio > 0 ? lucroRs / cardapio : null;
+
+  return { custoBase, precoSugerido, precoIfood18, precoIfood28, cardapio, lucroRs, lucroPct };
+}
+
+function calcCustoTotal(ficha) {
+  return calcPrecoFicha(ficha).precoSugerido;
 }
 
 // ===================== INSUMOS =====================
@@ -1645,19 +1659,17 @@ function renderDashboard() {
     return;
   }
   tbody.innerHTML = state.fichas.map(f => {
-    const p          = f.precificacao || {};
-    const precoSugerido = calcCustoTotal(f); // já inclui todos os custos + margem
-    const ifood18Pct = ((p.ifood18 !== undefined ? p.ifood18 : 18)) / 100;
-    const ifood28Pct = ((p.ifood28 !== undefined ? p.ifood28 : 28)) / 100;
-    const precoIfood18  = precoSugerido / (1 - ifood18Pct);
-    const precoIfood28  = precoSugerido / (1 - ifood28Pct);
-    const cardapio   = f.precoCardapio || 0;
-    const lucroRs    = cardapio > 0 ? cardapio - precoSugerido : 0;
-    const lucroPct   = cardapio > 0 ? lucroRs / cardapio : 0;
-    const cls        = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
-    const status     = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
-    const label      = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
-    const temPrec    = !!f.precificacao;
+    const pc         = calcPrecoFicha(f);
+    const precoSugerido = pc.precoSugerido;
+    const precoIfood18  = pc.precoIfood18;
+    const precoIfood28  = pc.precoIfood28;
+    const cardapio      = pc.cardapio;
+    const lucroRs       = pc.lucroRs || 0;
+    const lucroPct      = pc.lucroPct || 0;
+    const cls           = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
+    const status        = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
+    const label         = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
+    const temPrec       = !!f.precificacao;
     return `<tr>
       <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
       <td style="font-weight:600;color:var(--accent)">${fmt(calcCustoFicha(f))}</td>
