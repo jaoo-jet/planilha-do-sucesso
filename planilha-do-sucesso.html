@@ -1263,11 +1263,11 @@ function fmt(v) { return 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFraction
 function pct(v) { return ((v||0)*100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
 
 function getValorGrama(insumo) {
-  // valor por grama = valorKgCozido / 1000 (sempre baseado no preço por kg)
   if (insumo.medida === 'UN') {
-    // Para unidades: valorKgCozido já é o preço por unidade
-    return insumo.valorKgCozido;
+    // Para unidades: valor por unidade = valorKg / conversao (qtd de unidades)
+    return insumo.valorKg / insumo.conversao;
   }
+  // Para KG/ML: valor por grama = valorKgCozido / 1000
   return insumo.valorKgCozido / 1000;
 }
 
@@ -1288,7 +1288,11 @@ function renderInsumos(filter='') {
     return;
   }
   tbody.innerHTML = filtered.map(ins => {
-    const valor100g = ins.valorKgCozido / 10; // R$ por 100g = valorKgCozido / 10
+    const isUN = ins.medida === 'UN';
+    const valorUnitario = isUN
+      ? ins.valorKg / ins.conversao          // preço por unidade
+      : ins.valorKgCozido / 10;              // preço por 100g
+    const labelUnitario = isUN ? '/un' : '/100g';
     return `<tr>
       <td><strong>${ins.nome}</strong></td>
       <td>${ins.medida}</td>
@@ -1296,7 +1300,7 @@ function renderInsumos(filter='') {
       <td>${fmt(ins.valorKg)}</td>
       <td><span class="badge ${ins.temPerda ? 'badge-orange' : 'badge-green'}">${ins.temPerda ? 'Sim' : 'Não'}</span></td>
       <td>${fmt(ins.valorKgCozido)}</td>
-      <td class="accent" style="color:var(--accent);font-weight:600">${fmt(valor100g)}</td>
+      <td class="accent" style="color:var(--accent);font-weight:600">${fmt(valorUnitario)}<span style="font-size:0.7rem;color:var(--text3)">${labelUnitario}</span></td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="editInsumo(${ins.id})">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInsumo(${ins.id})">×</button>
