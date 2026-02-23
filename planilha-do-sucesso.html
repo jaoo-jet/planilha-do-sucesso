@@ -1616,26 +1616,17 @@ function renderDashboard() {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>';
     return;
   }
-  // Calcular custo fixo proporcional por ficha
-  const totalCustosFixos = state.custosFixos.reduce((s,cf) => s + cf.valor, 0);
-  const totalFichas = state.fichas.length || 1;
-  const custoFixoPorFicha = totalCustosFixos / totalFichas;
-
   tbody.innerHTML = state.fichas.map(f => {
-    const custoIngredientes = calcCustoFicha(f);
-    const custoTotal = custoIngredientes + custoFixoPorFicha;
+    const custo = calcCustoFicha(f);
     const cardapio = f.precoCardapio || 0;
-    const lucroRs = cardapio - custoTotal;
+    const lucroRs = cardapio - custo;
     const lucroPct = cardapio > 0 ? lucroRs / cardapio : 0;
     const cls = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
     const status = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
     const label = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
     return `<tr>
       <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
-      <td>
-        <div style="font-weight:600;color:var(--accent)">${fmt(custoTotal)}</div>
-        <div style="font-size:0.72rem;color:var(--text3)">ingr: ${fmt(custoIngredientes)} + fixo: ${fmt(custoFixoPorFicha)}</div>
-      </td>
+      <td>${fmt(custo)}</td>
       <td>${fmt(cardapio)}</td>
       <td class="${cls}">${fmt(lucroRs)}</td>
       <td class="${cls}">${pct(lucroPct)}</td>
