@@ -715,9 +715,9 @@ function esqueceuSenha() {
       <div class="panel-header"><h3>Fichas Técnicas — Rentabilidade</h3></div>
       <div class="panel-body" style="padding:0">
         <table>
-          <thead><tr><th>Produto</th><th>Custo</th><th>Preço Cardápio</th><th>Lucro R$</th><th>Lucro %</th><th>Status</th></tr></thead>
+          <thead><tr><th>Produto</th><th>Custo Total</th><th>Preço Sugerido</th><th>Preço Cardápio</th><th>iFood 18%</th><th>iFood 28%</th><th>Lucro R$</th><th>Lucro %</th><th>Status</th></tr></thead>
           <tbody id="dash-table-body">
-            <tr><td colspan="6" class="empty-state" style="text-align:center; padding:2rem; color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>
+            <tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma ficha técnica criada ainda.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1638,23 +1638,34 @@ function renderDashboard() {
     return;
   }
   tbody.innerHTML = state.fichas.map(f => {
+    const p          = f.precificacao || {};
     const custoIngr  = calcCustoFicha(f);
     const custoTotal = calcCustoTotal(f);
+    const margemPct  = ((p.margem !== undefined ? p.margem : 40)) / 100;
+    const ifood18Pct = ((p.ifood18 !== undefined ? p.ifood18 : 18)) / 100;
+    const ifood28Pct = ((p.ifood28 !== undefined ? p.ifood28 : 28)) / 100;
+    const precoSugerido = custoTotal / (1 - margemPct);
+    const precoIfood18  = precoSugerido / (1 - ifood18Pct);
+    const precoIfood28  = precoSugerido / (1 - ifood28Pct);
     const cardapio   = f.precoCardapio || 0;
-    const lucroRs    = cardapio - custoTotal;
+    const lucroRs    = cardapio > 0 ? cardapio - custoTotal : 0;
     const lucroPct   = cardapio > 0 ? lucroRs / cardapio : 0;
     const cls        = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
     const status     = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
     const label      = lucroPct > 0.4 ? 'Ótimo' : lucroPct > 0.2 ? 'Regular' : 'Risco';
+    const temPrec    = !!f.precificacao;
     return `<tr>
       <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
       <td>
         <div style="font-weight:600;color:var(--accent)">${fmt(custoTotal)}</div>
-        <div style="font-size:0.72rem;color:var(--text3)">ingredientes: ${fmt(custoIngr)}</div>
+        <div style="font-size:0.72rem;color:var(--text3)">ingr: ${fmt(custoIngr)}</div>
       </td>
-      <td>${fmt(cardapio)}</td>
-      <td class="${cls}">${fmt(lucroRs)}</td>
-      <td class="${cls}">${pct(lucroPct)}</td>
+      <td style="color:var(--accent);font-weight:700">${temPrec ? fmt(precoSugerido) : '<span style="color:var(--text3);font-size:0.8rem">Não configurado</span>'}</td>
+      <td>${cardapio > 0 ? fmt(cardapio) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td style="color:var(--text2)">${temPrec ? fmt(precoIfood18) : '—'}</td>
+      <td style="color:var(--text2)">${temPrec ? fmt(precoIfood28) : '—'}</td>
+      <td class="${cardapio > 0 ? cls : ''}">${cardapio > 0 ? fmt(lucroRs) : '<span style="color:var(--text3)">—</span>'}</td>
+      <td class="${cardapio > 0 ? cls : ''}">${cardapio > 0 ? pct(lucroPct) : '<span style="color:var(--text3)">—</span>'}</td>
       <td><span class="badge ${status}">${label}</span></td>
     </tr>`;
   }).join('');
