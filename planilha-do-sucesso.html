@@ -1285,19 +1285,26 @@ function calcCustoFicha(ficha) {
 }
 
 function calcCustoTotal(ficha) {
-  // Usa params salvos na ficha se existirem, senão usa os valores dos inputs
+  // Calcula o Preço Sugerido completo — igual ao da tela de Precificação
   const p = ficha.precificacao || {};
+  const def = (key, fallbackId, fallbackVal) =>
+    (p[key] !== undefined ? p[key] : parseFloat(document.getElementById(fallbackId)?.value) || fallbackVal);
+
   const custoBase    = calcCustoFicha(ficha);
-  const producaoPct  = ((p.producao  !== undefined ? p.producao  : parseFloat(document.getElementById('preco-producao')?.value)  || 20)) / 100;
-  const fixoPct      = ((p.fixo      !== undefined ? p.fixo      : parseFloat(document.getElementById('preco-fixo')?.value)      || 30)) / 100;
-  const variavelPct  = ((p.variavel  !== undefined ? p.variavel  : parseFloat(document.getElementById('preco-variavel')?.value)  || 10)) / 100;
-  const taxaPct      = ((p.taxa      !== undefined ? p.taxa      : parseFloat(document.getElementById('preco-taxa')?.value)      || 5))  / 100;
-  const embalagem    =  (p.embalagem !== undefined ? p.embalagem : parseFloat(document.getElementById('preco-embalagem')?.value) || 1.5);
-  const afterProducao = custoBase * (1 + producaoPct);
-  const afterFixo     = afterProducao * (1 + fixoPct);
-  const afterVariavel = afterFixo * (1 + variavelPct);
-  const afterTaxa     = afterVariavel * (1 + taxaPct);
-  return afterTaxa + embalagem;
+  const producaoPct  = def('producao',  'preco-producao',  20) / 100;
+  const fixoPct      = def('fixo',      'preco-fixo',      30) / 100;
+  const variavelPct  = def('variavel',  'preco-variavel',  10) / 100;
+  const taxaPct      = def('taxa',      'preco-taxa',       5) / 100;
+  const margemPct    = def('margem',    'preco-margem',    40) / 100;
+  const embalagem    = def('embalagem', 'preco-embalagem', 1.5);
+
+  const afterProducao  = custoBase * (1 + producaoPct);
+  const afterFixo      = afterProducao * (1 + fixoPct);
+  const afterVariavel  = afterFixo * (1 + variavelPct);
+  const afterTaxa      = afterVariavel * (1 + taxaPct);
+  const afterEmbalagem = afterTaxa + embalagem;
+  const precoSugerido  = afterEmbalagem / (1 - margemPct); // inclui margem de lucro
+  return precoSugerido;
 }
 
 // ===================== INSUMOS =====================
@@ -1639,16 +1646,13 @@ function renderDashboard() {
   }
   tbody.innerHTML = state.fichas.map(f => {
     const p          = f.precificacao || {};
-    const custoIngr  = calcCustoFicha(f);
-    const custoTotal = calcCustoTotal(f);
-    const margemPct  = ((p.margem !== undefined ? p.margem : 40)) / 100;
+    const precoSugerido = calcCustoTotal(f); // já inclui todos os custos + margem
     const ifood18Pct = ((p.ifood18 !== undefined ? p.ifood18 : 18)) / 100;
     const ifood28Pct = ((p.ifood28 !== undefined ? p.ifood28 : 28)) / 100;
-    const precoSugerido = custoTotal / (1 - margemPct);
     const precoIfood18  = precoSugerido / (1 - ifood18Pct);
     const precoIfood28  = precoSugerido / (1 - ifood28Pct);
     const cardapio   = f.precoCardapio || 0;
-    const lucroRs    = cardapio > 0 ? cardapio - custoTotal : 0;
+    const lucroRs    = cardapio > 0 ? cardapio - precoSugerido : 0;
     const lucroPct   = cardapio > 0 ? lucroRs / cardapio : 0;
     const cls        = lucroRs >= 0 ? 'profit-positive' : 'profit-negative';
     const status     = lucroPct > 0.4 ? 'badge-green' : lucroPct > 0.2 ? 'badge-orange' : 'badge-red';
@@ -1656,10 +1660,7 @@ function renderDashboard() {
     const temPrec    = !!f.precificacao;
     return `<tr>
       <td><strong>${f.nome}</strong> <span class="tag">${f.categoria}</span></td>
-      <td>
-        <div style="font-weight:600;color:var(--accent)">${fmt(custoTotal)}</div>
-        <div style="font-size:0.72rem;color:var(--text3)">ingr: ${fmt(custoIngr)}</div>
-      </td>
+      <td style="font-weight:600;color:var(--accent)">${fmt(calcCustoFicha(f))}</td>
       <td style="color:var(--accent);font-weight:700">${temPrec ? fmt(precoSugerido) : '<span style="color:var(--text3);font-size:0.8rem">Não configurado</span>'}</td>
       <td>${cardapio > 0 ? fmt(cardapio) : '<span style="color:var(--text3)">—</span>'}</td>
       <td style="color:var(--text2)">${temPrec ? fmt(precoIfood18) : '—'}</td>
