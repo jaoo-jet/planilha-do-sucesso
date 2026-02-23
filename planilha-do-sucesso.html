@@ -1469,6 +1469,30 @@ function renderEditIngList(ingredientes) {
   });
 }
 
+function onEditIngSearch(input) {
+  const term = input.value.toLowerCase();
+  const dropdown = input.nextElementSibling;
+  const hidden = dropdown.nextElementSibling;
+  const filtered = state.insumos.filter(i => i.nome.toLowerCase().includes(term));
+  dropdown.style.display = filtered.length ? 'block' : 'none';
+  dropdown.innerHTML = filtered.map(i =>
+    `<div style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.88rem;border-bottom:1px solid var(--border)"
+       onmousedown="selectEditIng(this, ${i.id}, '${i.nome}')"
+       onmouseover="this.style.background='var(--surface2)'"
+       onmouseout="this.style.background=''">${i.nome}</div>`
+  ).join('');
+}
+
+function selectEditIng(el, id, nome) {
+  const dropdown = el.parentElement;
+  const input = dropdown.previousElementSibling;
+  const hidden = dropdown.nextElementSibling;
+  input.value = nome;
+  hidden.value = id;
+  dropdown.style.display = 'none';
+  onEditIngChange(hidden);
+}
+
 function addEditIngRow(selectedId = '', qtd = 100) {
   const container = document.getElementById('edit-ing-list');
   const div = document.createElement('div');
@@ -1480,11 +1504,15 @@ function addEditIngRow(selectedId = '', qtd = 100) {
   const custoIng = insumo ? valorGrama * qtd : 0;
   const unidade = insumo ? (insumo.medida === 'UN' ? 'un' : insumo.medida === 'ML' ? 'ml' : 'g') : 'g';
 
+  const nomeAtual = insumo ? insumo.nome : '';
   div.innerHTML = `
-    <select class="edit-ing-select" onchange="onEditIngChange(this)" style="width:100%">
-      <option value="">— Selecione o Insumo —</option>
-      ${state.insumos.map(i => `<option value="${i.id}" ${i.id == selectedId ? 'selected' : ''}>${i.nome}</option>`).join('')}
-    </select>
+    <div style="position:relative">
+      <input type="text" class="edit-ing-search" placeholder="Buscar insumo..." value="${nomeAtual}"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:0.55rem 0.75rem;font-family:'DM Sans',sans-serif;font-size:0.88rem"
+        oninput="onEditIngSearch(this)" onfocus="onEditIngSearch(this)" onblur="setTimeout(()=>this.nextElementSibling.style.display='none',200)">
+      <div class="edit-ing-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:999;max-height:200px;overflow-y:auto;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,0.4)"></div>
+      <input type="hidden" class="edit-ing-select" value="${selectedId || ''}" onchange="onEditIngChange(this)">
+    </div>
     <div style="display:flex;gap:0.3rem;align-items:center">
       <input type="number" class="edit-ing-qtd" value="${qtd}" min="0" step="1" style="width:100%" oninput="onEditIngChange(this.closest('.edit-ing-row').querySelector('.edit-ing-select'))">
       <span class="edit-ing-unit" style="font-size:0.78rem;color:var(--text3);min-width:18px">${unidade}</span>
