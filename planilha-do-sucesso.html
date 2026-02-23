@@ -1244,7 +1244,7 @@ function renderInsumos(filter='') {
     return;
   }
   tbody.innerHTML = filtered.map(ins => {
-    const valorGr = (ins.valorKgCozido / ins.conversao).toFixed(4);
+    const valor100g = ins.valorKgCozido / 10; // R$ por 100g = valorKgCozido / 10
     return `<tr>
       <td><strong>${ins.nome}</strong></td>
       <td>${ins.medida}</td>
@@ -1252,7 +1252,7 @@ function renderInsumos(filter='') {
       <td>${fmt(ins.valorKg)}</td>
       <td><span class="badge ${ins.temPerda ? 'badge-orange' : 'badge-green'}">${ins.temPerda ? 'Sim' : 'Não'}</span></td>
       <td>${fmt(ins.valorKgCozido)}</td>
-      <td class="accent" style="color:var(--accent);font-weight:600">${fmt(parseFloat(valorGr))}</td>
+      <td class="accent" style="color:var(--accent);font-weight:600">${fmt(valor100g)}</td>
       <td>
         <button class="btn btn-secondary btn-sm" onclick="editInsumo(${ins.id})">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInsumo(${ins.id})">×</button>
