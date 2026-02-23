@@ -10,7 +10,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword as fbUpdatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCPssE8M_MWTCUmn25T7r9Amg1QGl8H73o",
@@ -21,12 +20,14 @@
     appId: "1:169736117257:web:9125e177119485a44eacd8"
   };
 
-  const ADMIN_EMAIL = "josurf5lost@gmail.com"; // Troque pelo seu e-mail de admin
-  const SUPORTE_EMAIL = "suporte@planilhadosucesso.com"; // E-mail do acesso de suporte
+  const ADMIN_EMAIL = "josurf5lost@gmail.com";
+  const SUPORTE_EMAIL = "suporte@planilhadosucesso.com";
 
   const app = initializeApp(firebaseConfig);
+  const app2 = initializeApp(firebaseConfig, "secondary");
   const db = getFirestore(app);
   const auth = getAuth(app);
+  const auth2 = getAuth(app2);
 
   // ---- SALVAR/CARREGAR dados por usuário ----
   window.saveToFirebase = async function(dados) {
@@ -35,9 +36,7 @@
     try {
       await setDoc(doc(db, "clientes", user.uid, "dados", "planilha"), dados);
       mostrarStatusSalvo();
-    } catch(e) {
-      console.error("Erro ao salvar:", e);
-    }
+    } catch(e) { console.error("Erro ao salvar:", e); }
   };
 
   window.loadFromFirebase = async function() {
@@ -46,10 +45,7 @@
     try {
       const snap = await getDoc(doc(db, "clientes", user.uid, "dados", "planilha"));
       return snap.exists() ? snap.data() : null;
-    } catch(e) {
-      console.error("Erro ao carregar:", e);
-      return null;
-    }
+    } catch(e) { return null; }
   };
 
   // ---- LOGIN ----
@@ -59,28 +55,19 @@
     const erroEl = document.getElementById("login-erro");
     const btnEl = document.getElementById("btn-login");
     erroEl.style.display = "none";
-    btnEl.textContent = "Entrando...";
-    btnEl.disabled = true;
+    btnEl.textContent = "Entrando..."; btnEl.disabled = true;
     try {
       await signInWithEmailAndPassword(auth, email, senha);
     } catch(e) {
       erroEl.textContent = "E-mail ou senha incorretos. Tente novamente.";
       erroEl.style.display = "block";
-      btnEl.textContent = "Entrar";
-      btnEl.disabled = false;
+      btnEl.textContent = "Entrar"; btnEl.disabled = false;
     }
   };
 
-  // ---- LOGOUT ----
-  window.fazerLogout = async function() {
-    await signOut(auth);
-  };
+  window.fazerLogout = async function() { await signOut(auth); };
 
-  // ---- CRIAR CLIENTE (admin) ----
-  // Segunda instância do Firebase só para criar usuários sem deslogar o admin
-  const app2 = initializeApp(firebaseConfig, "secondary");
-  const auth2 = getAuth(app2);
-
+  // ---- CRIAR CLIENTE ----
   window.criarCliente = async function() {
     const nome = document.getElementById("admin-nome").value.trim();
     const email = document.getElementById("admin-email").value.trim();
@@ -93,13 +80,8 @@
       erroEl.style.display = "block"; return;
     }
     try {
-      // Cria o usuário na instância secundária — não afeta a sessão do admin
       const cred = await createUserWithEmailAndPassword(auth2, email, senha);
-      // Salva info do cliente no Firestore
-      await setDoc(doc(db, "clientes", cred.user.uid), {
-        nome, email, criadoEm: new Date().toISOString(), uid: cred.user.uid
-      });
-      // Desloga da instância secundária (não afeta o admin)
+      await setDoc(doc(db, "clientes", cred.user.uid), { nome, email, criadoEm: new Date().toISOString(), uid: cred.user.uid });
       await signOut(auth2);
       document.getElementById("admin-nome").value = "";
       document.getElementById("admin-email").value = "";
@@ -113,7 +95,7 @@
     }
   };
 
-  // ---- CARREGAR lista de clientes (admin) ----
+  // ---- CARREGAR CLIENTES (admin) ----
   window.carregarClientes = async function() {
     const tbody = document.getElementById("admin-clientes-table");
     try {
@@ -123,15 +105,15 @@
         return;
       }
       tbody.innerHTML = snap.docs.map(d => {
-        const c = d.data();
-        const data = c.criadoEm ? new Date(c.criadoEm).toLocaleDateString("pt-BR") : "—";
+        const cl = d.data();
+        const data = cl.criadoEm ? new Date(cl.criadoEm).toLocaleDateString("pt-BR") : "—";
         return `<tr>
-          <td><strong>${c.nome || "—"}</strong></td>
-          <td>${c.email}</td>
+          <td><strong>${cl.nome || "—"}</strong></td>
+          <td>${cl.email}</td>
           <td>${data}</td>
           <td style="display:flex;gap:0.5rem;flex-wrap:wrap">
-            <button class="btn btn-secondary btn-sm" onclick="abrirModalSenha('${c.uid}', '${c.nome || c.email}')">🔑 Alterar Senha</button>
-            <button class="btn btn-danger btn-sm" onclick="deletarCliente('${c.uid}', '${c.email}')">Remover</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalSenha('${cl.uid}', '${cl.nome || cl.email}')">🔑 Alterar Senha</button>
+            <button class="btn btn-danger btn-sm" onclick="deletarCliente('${cl.uid}', '${cl.email}')">Remover</button>
           </td>
         </tr>`;
       }).join("");
@@ -140,101 +122,46 @@
     }
   };
 
-  window.abrirModalSenha = function(uid, nome) {
-    document.getElementById('modal-senha-uid').value = uid;
-    document.getElementById('modal-senha-nome').textContent = nome;
-    document.getElementById('modal-senha-nova').value = '';
-    document.getElementById('modal-senha-erro').style.display = 'none';
-    document.getElementById('modal-senha-ok').style.display = 'none';
-    document.getElementById('modal-alterar-senha').classList.add('active');
-  };
-
-  window._salvarNovaSenha = async function() {
-    const uid = document.getElementById('modal-senha-uid').value;
-    const novaSenha = document.getElementById('modal-senha-nova').value;
-    const erroEl = document.getElementById('modal-senha-erro');
-    const okEl = document.getElementById('modal-senha-ok');
-    erroEl.style.display = 'none'; okEl.style.display = 'none';
-    if (novaSenha.length < 6) {
-      erroEl.textContent = 'A senha deve ter no mínimo 6 caracteres.';
-      erroEl.style.display = 'block'; return;
-    }
-    try {
-      // Salva nova senha no Firestore para o cliente usar no próximo login
-      await setDoc(doc(db, 'clientes', uid), { senhaPendente: novaSenha }, { merge: true });
-      okEl.textContent = '✅ Senha atualizada! O cliente usará a nova senha no próximo login.';
-      okEl.style.display = 'block';
-    } catch(e) {
-      erroEl.textContent = 'Erro ao atualizar senha: ' + e.message;
-      erroEl.style.display = 'block';
-    }
-  };
-
-  window.fecharModalSenha = function() {
-    document.getElementById('modal-alterar-senha').classList.remove('active');
-  };
-
   window.deletarCliente = async function(uid, email) {
-    if (!confirm("Remover cliente " + email + "? Os dados dele serão apagados.")) return;
+    if (!confirm("Remover cliente " + email + "? Os dados serão apagados.")) return;
     try {
       await deleteDoc(doc(db, "clientes", uid));
       carregarClientes();
+    } catch(e) { alert("Erro ao remover: " + e.message); }
+  };
+
+  // ---- ALTERAR SENHA ----
+  window.abrirModalSenha = function(uid, nome) {
+    document.getElementById("modal-senha-uid").value = uid;
+    document.getElementById("modal-senha-nome").textContent = nome;
+    document.getElementById("modal-senha-nova").value = "";
+    document.getElementById("modal-senha-erro").style.display = "none";
+    document.getElementById("modal-senha-ok").style.display = "none";
+    document.getElementById("modal-alterar-senha").style.display = "flex";
+  };
+
+  window._salvarNovaSenha = async function() {
+    const uid = document.getElementById("modal-senha-uid").value;
+    const novaSenha = document.getElementById("modal-senha-nova").value;
+    const erroEl = document.getElementById("modal-senha-erro");
+    const okEl = document.getElementById("modal-senha-ok");
+    erroEl.style.display = "none"; okEl.style.display = "none";
+    if (novaSenha.length < 6) {
+      erroEl.textContent = "A senha deve ter no mínimo 6 caracteres.";
+      erroEl.style.display = "block"; return;
+    }
+    try {
+      await setDoc(doc(db, "clientes", uid), { senhaPendente: novaSenha }, { merge: true });
+      okEl.textContent = "✅ Senha atualizada! O cliente usará a nova senha no próximo login.";
+      okEl.style.display = "block";
     } catch(e) {
-      alert("Erro ao remover: " + e.message);
+      erroEl.textContent = "Erro ao atualizar senha: " + e.message;
+      erroEl.style.display = "block";
     }
   };
 
-  // ---- AUTH STATE: controla qual tela mostrar ----
-  onAuthStateChanged(auth, async (user) => {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("admin-screen").style.display = "none";
-    document.getElementById("suporte-screen").style.display = "none";
-    document.getElementById("app-screen").style.display = "none";
-
-    if (!user) {
-      document.getElementById("login-screen").style.display = "flex";
-      return;
-    }
-
-    // Identifica o tipo de usuário
-    if (user.email === ADMIN_EMAIL) {
-      // É admin: mostrar painel admin
-      document.getElementById("admin-screen").style.display = "block";
-      carregarClientes();
-      return;
-    }
-
-    if (user.email === SUPORTE_EMAIL) {
-      // É suporte: mostrar painel de suporte
-      document.getElementById("suporte-screen").style.display = "block";
-      carregarClientesSuporte();
-      return;
-    }
-
-    // É cliente: verificar senha pendente e mostrar app
-    try {
-      const clienteSnap = await getDoc(doc(db, 'clientes', user.uid));
-      if (clienteSnap.exists() && clienteSnap.data().senhaPendente) {
-        const novaSenha = clienteSnap.data().senhaPendente;
-        await fbUpdatePassword(user, novaSenha);
-        await setDoc(doc(db, 'clientes', user.uid), { senhaPendente: null }, { merge: true });
-      }
-    } catch(e) { console.log('Senha pendente não aplicada:', e); }
-
-    // É cliente: mostrar o app
-    document.getElementById("app-screen").style.display = "block";
-    const headerUser = document.getElementById("header-user");
-    if (headerUser) headerUser.textContent = user.email;
-
-    const dados = await window.loadFromFirebase();
-    window._dadosIniciais = dados;
-    if (typeof window.initApp === "function") window.initApp(dados);
-  });
-
-
-  // ===================== SUPORTE FUNCTIONS =====================
+  // ---- CARREGAR CLIENTES (suporte) ----
   let todosClientesSuporte = [];
-  let clienteSuporteAtual = null;
 
   window.carregarClientesSuporte = async function() {
     const tbody = document.getElementById("suporte-clientes-table");
@@ -276,22 +203,19 @@
     renderTabelaSuporte(filtrados);
   };
 
+
+  // ===================== SUPORTE: abrir dados de cliente =====================
   window.abrirClienteSuporte = async function(uid, nome, email) {
-    clienteSuporteAtual = uid;
-    // Show client info bar
     document.getElementById("suporte-cliente-nome").textContent = nome;
     document.getElementById("suporte-cliente-email").textContent = "(" + email + ")";
     document.getElementById("suporte-lista").style.display = "none";
     document.getElementById("suporte-app").style.display = "block";
     document.getElementById("btn-voltar-suporte").style.display = "inline-block";
 
-    // Move the main app inside suporte-app
     const appScreen = document.getElementById("app-screen");
-    const suporteApp = document.getElementById("suporte-app");
-    suporteApp.appendChild(appScreen);
+    document.getElementById("suporte-app").appendChild(appScreen);
     appScreen.style.display = "block";
 
-    // Override saveToFirebase to save to this client's UID
     window.saveToFirebase = async function(dados) {
       try {
         await setDoc(doc(db, "clientes", uid, "dados", "planilha"), dados);
@@ -299,40 +223,69 @@
       } catch(e) { console.error("Erro suporte save:", e); }
     };
 
-    // Load this client's data
     try {
       const snap = await getDoc(doc(db, "clientes", uid, "dados", "planilha"));
       const dados = snap.exists() ? snap.data() : null;
       const headerUser = document.getElementById("header-user");
-      if (headerUser) headerUser.textContent = "👁️ " + email;
-      // Força reinicialização completa do estado antes de carregar os dados do cliente
-      // Reseta o estado para não misturar dados entre clientes
-      state.insumos = [];
-      state.fichas = [];
-      state.perdas = [];
-      state.custosFixos = [];
-      state.editingFichaId = null;
+      if (headerUser) headerUser.textContent = "🛠️ " + email;
+      state.insumos = []; state.fichas = []; state.perdas = []; state.custosFixos = []; state.editingFichaId = null;
       if (typeof window.initApp === "function") window.initApp(dados);
-      if (!dados) {
-        const infoEl = document.getElementById("suporte-cliente-nome");
-        if (infoEl) infoEl.textContent = nome + " (sem dados salvos ainda)";
-      }
     } catch(e) {
-      console.error("Erro ao carregar dados do cliente:", e);
-      alert("Erro ao carregar dados: " + e.message);
+      alert("Erro ao carregar dados do cliente: " + e.message);
     }
   };
 
   window.voltarListaClientes = function() {
-    clienteSuporteAtual = null;
     document.getElementById("suporte-lista").style.display = "block";
     document.getElementById("suporte-app").style.display = "none";
     document.getElementById("btn-voltar-suporte").style.display = "none";
     document.getElementById("app-screen").style.display = "none";
-
-    // Restore saveToFirebase to use current user (suporte)
-    // It will be a no-op since suporte won't save to their own uid
   };
+
+
+  // ---- AUTH STATE ----
+  onAuthStateChanged(auth, async (user) => {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("admin-screen").style.display = "none";
+    document.getElementById("suporte-screen").style.display = "none";
+    document.getElementById("app-screen").style.display = "none";
+
+    if (!user) {
+      document.getElementById("login-screen").style.display = "flex";
+      return;
+    }
+
+    if (user.email === ADMIN_EMAIL) {
+      document.getElementById("admin-screen").style.display = "block";
+      carregarClientes();
+      return;
+    }
+
+    if (user.email === SUPORTE_EMAIL) {
+      document.getElementById("suporte-screen").style.display = "block";
+      carregarClientesSuporte();
+      return;
+    }
+
+    // É cliente
+    document.getElementById("app-screen").style.display = "block";
+    const headerUser = document.getElementById("header-user");
+    if (headerUser) headerUser.textContent = user.email;
+
+    try {
+      const clienteSnap = await getDoc(doc(db, "clientes", user.uid));
+      if (clienteSnap.exists() && clienteSnap.data().senhaPendente) {
+        const novaSenha = clienteSnap.data().senhaPendente;
+        await fbUpdatePassword(user, novaSenha);
+        await setDoc(doc(db, "clientes", user.uid), { senhaPendente: null }, { merge: true });
+      }
+    } catch(e) {}
+
+    const snap = await getDoc(doc(db, "clientes", user.uid, "dados", "planilha"));
+    const dados = snap.exists() ? snap.data() : null;
+    window._dadosIniciais = dados;
+    if (typeof window.initApp === "function") window.initApp(dados);
+  });
 
   function mostrarStatusSalvo() {
     const el = document.getElementById("status-salvo");
@@ -341,7 +294,32 @@
     clearTimeout(window._saveTimer);
     window._saveTimer = setTimeout(() => { el.style.opacity = "0"; }, 2500);
   }
-
+</script>
+<script>
+function abrirModalSenha(uid, nome) {
+  if (window.abrirModalSenha._native) { window.abrirModalSenha._native(uid, nome); return; }
+  document.getElementById("modal-senha-uid").value = uid;
+  document.getElementById("modal-senha-nome").textContent = nome;
+  document.getElementById("modal-senha-nova").value = "";
+  document.getElementById("modal-senha-erro").style.display = "none";
+  document.getElementById("modal-senha-ok").style.display = "none";
+  document.getElementById("modal-alterar-senha").style.display = "flex";
+}
+function fecharModalSenha() {
+  document.getElementById("modal-alterar-senha").style.display = "none";
+}
+function salvarNovaSenha() {
+  if (window._salvarNovaSenha) window._salvarNovaSenha();
+}
+function abrirClienteSuporte(uid, nome, email) {
+  if (window.abrirClienteSuporte) window.abrirClienteSuporte(uid, nome, email);
+}
+function voltarListaClientes() {
+  if (window.voltarListaClientes) window.voltarListaClientes();
+}
+function filtrarClientesSuporte(v) {
+  if (window.filtrarClientesSuporte) window.filtrarClientesSuporte(v);
+}
 </script>
 <style>
   :root {
@@ -539,68 +517,44 @@
   .profit-positive { color: var(--green); }
   .profit-negative { color: var(--red); }
 </style>
-
-<script>
-function abrirModalSenha(uid, nome) {
-  document.getElementById('modal-senha-uid').value = uid;
-  document.getElementById('modal-senha-nome').textContent = nome;
-  document.getElementById('modal-senha-nova').value = '';
-  document.getElementById('modal-senha-erro').style.display = 'none';
-  document.getElementById('modal-senha-ok').style.display = 'none';
-  document.getElementById('modal-alterar-senha').style.display = 'flex';
-}
-function fecharModalSenha() {
-  document.getElementById('modal-alterar-senha').style.display = 'none';
-}
-function salvarNovaSenha() {
-  if (window._salvarNovaSenha) window._salvarNovaSenha();
-  else alert('Aguarde o sistema carregar e tente novamente.');
-}
-</script>
 </head>
 <body>
 
 <!-- ===== TELA DE LOGIN ===== -->
-<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f0e0d">
   <div style="width:100%;max-width:400px;padding:1.5rem">
     <div style="text-align:center;margin-bottom:2.5rem">
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;margin-bottom:0.5rem">Planilha do <span style='color:var(--accent)'>Sucesso</span></div>
-      <p style="color:var(--text2);font-size:0.9rem">Entre com suas credenciais para acessar</p>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;color:#f0ede8;margin-bottom:0.5rem">Planilha do <span style="color:#f5a623">Sucesso</span></div>
+      <p style="color:#a09b93;font-size:0.9rem">Entre com suas credenciais para acessar</p>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem">
-      <div id="login-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
+    <div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:2rem">
+      <div id="login-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:#e8441a"></div>
       <div style="display:flex;flex-direction:column;gap:1rem">
-        <div class="form-group">
-          <label>E-mail</label>
-          <input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter') fazerLogin()">
-        </div>
-        <div class="form-group">
-          <label>Senha</label>
-          <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') fazerLogin()">
-        </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
+        <div class="form-group"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
+        <div class="form-group"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
+        <button class="btn btn-primary" style="width:100%;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
       </div>
     </div>
-    <p style="text-align:center;margin-top:1.5rem;font-size:0.78rem;color:var(--text3)">Planilha do Sucesso © 2025</p>
+    <p style="text-align:center;margin-top:1.5rem;font-size:0.78rem;color:#6b6560">Planilha do Sucesso © 2025</p>
   </div>
 </div>
 
 <!-- ===== PAINEL ADMIN ===== -->
-<div id="admin-screen" style="display:none;min-height:100vh;background:var(--bg)">
-  <header style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem">⚙️ Painel <span style='color:var(--accent)'>Admin</span></div>
+<div id="admin-screen" style="display:none;min-height:100vh;background:#0f0e0d">
+  <header style="background:#1a1917;border-bottom:1px solid #2e2c29;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;color:#f0ede8">⚙️ Painel <span style="color:#f5a623">Admin</span></div>
     <button class="btn btn-danger btn-sm" onclick="fazerLogout()">Sair</button>
   </header>
   <div style="max-width:900px;margin:0 auto;padding:2rem">
     <div style="margin-bottom:2rem">
-      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700">Gerenciar Clientes</h2>
-      <p style="color:var(--text2);font-size:0.9rem;margin-top:0.25rem">Crie e gerencie os acessos dos seus clientes</p>
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700;color:#f0ede8">Gerenciar Clientes</h2>
+      <p style="color:#a09b93;font-size:0.9rem;margin-top:0.25rem">Crie e gerencie os acessos dos seus clientes</p>
     </div>
     <div class="panel" style="margin-bottom:1.5rem">
       <div class="panel-header"><h3>➕ Criar Novo Cliente</h3></div>
       <div class="panel-body">
-        <div id="admin-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
-        <div id="admin-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--green)"></div>
+        <div id="admin-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:#e8441a"></div>
+        <div id="admin-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:#4caf82"></div>
         <div class="form-grid">
           <div class="form-group"><label>Nome do Cliente</label><input type="text" id="admin-nome" placeholder="Ex: Restaurante do João"></div>
           <div class="form-group"><label>E-mail</label><input type="email" id="admin-email" placeholder="cliente@email.com"></div>
@@ -611,55 +565,44 @@ function salvarNovaSenha() {
     </div>
     <div class="panel">
       <div class="panel-header"><h3>👥 Clientes Cadastrados</h3></div>
-      <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th></th></tr></thead><tbody id="admin-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr></tbody></table></div>
+      <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th>Ações</th></tr></thead><tbody id="admin-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b6560">Carregando...</td></tr></tbody></table></div>
     </div>
   </div>
 </div>
 
-
 <!-- ===== PAINEL SUPORTE ===== -->
-<div id="suporte-screen" style="display:none;min-height:100vh;background:var(--bg)">
-  <header style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem">🛠️ Suporte <span style="color:var(--accent)">Técnico</span></div>
+<div id="suporte-screen" style="display:none;min-height:100vh;background:#0f0e0d">
+  <header style="background:#1a1917;border-bottom:1px solid #2e2c29;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;color:#f0ede8">🛠️ Suporte <span style="color:#f5a623">Técnico</span></div>
     <div style="display:flex;align-items:center;gap:1rem">
       <button class="btn btn-secondary btn-sm" id="btn-voltar-suporte" onclick="voltarListaClientes()" style="display:none">← Voltar à lista</button>
       <button class="btn btn-danger btn-sm" onclick="fazerLogout()">Sair</button>
     </div>
   </header>
-
-  <!-- Lista de clientes do suporte -->
   <div id="suporte-lista" style="max-width:900px;margin:0 auto;padding:2rem">
     <div style="margin-bottom:2rem">
-      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700">Clientes</h2>
-      <p style="color:var(--text2);font-size:0.9rem;margin-top:0.25rem">Selecione um cliente para ver e editar os dados</p>
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:700;color:#f0ede8">Clientes</h2>
+      <p style="color:#a09b93;font-size:0.9rem;margin-top:0.25rem">Selecione um cliente para ver e editar os dados</p>
     </div>
     <div class="panel">
       <div class="panel-header">
         <h3>👥 Lista de Clientes</h3>
         <input type="text" placeholder="Buscar cliente..." style="width:220px;padding:0.4rem 0.75rem;font-size:0.85rem" oninput="filtrarClientesSuporte(this.value)">
       </div>
-      <div style="padding:0">
-        <table>
-          <thead><tr><th>Nome</th><th>E-mail</th><th>Cadastrado em</th><th></th></tr></thead>
-          <tbody id="suporte-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr></tbody>
-        </table>
-      </div>
+      <div style="padding:0"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Cadastrado em</th><th></th></tr></thead><tbody id="suporte-clientes-table"><tr><td colspan="4" style="text-align:center;padding:2rem;color:#6b6560">Carregando...</td></tr></tbody></table></div>
     </div>
   </div>
-
-  <!-- App do cliente carregado pelo suporte -->
   <div id="suporte-app" style="display:none">
     <div style="background:rgba(245,166,35,0.08);border-bottom:1px solid rgba(245,166,35,0.2);padding:0.6rem 2rem;display:flex;align-items:center;gap:0.75rem">
-      <span style="font-size:0.85rem;color:var(--accent)">🛠️ Modo Suporte:</span>
-      <span id="suporte-cliente-nome" style="font-size:0.85rem;color:var(--text);font-weight:600"></span>
-      <span style="font-size:0.78rem;color:var(--text3)" id="suporte-cliente-email"></span>
+      <span style="font-size:0.85rem;color:#f5a623">🛠️ Modo Suporte:</span>
+      <span id="suporte-cliente-nome" style="font-size:0.85rem;color:#f0ede8;font-weight:600"></span>
+      <span id="suporte-cliente-email" style="font-size:0.78rem;color:#6b6560"></span>
     </div>
   </div>
 </div>
 
-<!-- ===== APP PRINCIPAL (só aparece após login) ===== -->
+<!-- ===== APP PRINCIPAL ===== -->
 <div id="app-screen" style="display:none">
-
 <header>
   <div class="logo">Planilha do <span>Sucesso</span></div>
   <nav>
@@ -671,7 +614,6 @@ function salvarNovaSenha() {
     <button onclick="showPage('despesas')">Desp × Fat</button>
   </nav>
   <div id="status-salvo" style="font-size:0.78rem;color:var(--green);opacity:0;transition:opacity 0.4s;display:flex;align-items:center;gap:0.35rem">✓ Salvo no servidor</div>
-  <div id="status-firebase" style="font-size:0.75rem;padding:0.25rem 0.65rem;border-radius:6px;background:rgba(232,68,26,0.15);color:var(--red);display:none">⚠️ Modo local</div>
   <div style="display:flex;align-items:center;gap:0.75rem">
     <span id="header-user" style="font-size:0.8rem;color:var(--text2)"></span>
     <button class="btn btn-secondary btn-sm" onclick="fazerLogout()">Sair</button>
@@ -1124,8 +1066,27 @@ function salvarNovaSenha() {
     </div>
   </div>
 </div>
+</div>
 
 
+<!-- MODAL ALTERAR SENHA CLIENTE -->
+<div id="modal-alterar-senha" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#1a1917;border:1px solid #2e2c29;border-radius:16px;padding:2rem;width:90%;max-width:440px">
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem;color:#f0ede8">🔑 Alterar Senha do Cliente</h3>
+    <p style="color:#a09b93;font-size:0.88rem;margin-bottom:1.25rem">Cliente: <strong id="modal-senha-nome" style="color:#f5a623"></strong></p>
+    <input type="hidden" id="modal-senha-uid">
+    <div id="modal-senha-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:#e8441a"></div>
+    <div id="modal-senha-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem;margin-bottom:1rem;font-size:0.85rem;color:#4caf82"></div>
+    <div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:1.5rem">
+      <label style="font-size:0.8rem;color:#a09b93;font-weight:500">Nova Senha</label>
+      <input type="password" id="modal-senha-nova" placeholder="Mínimo 6 caracteres" style="background:#0f0e0d;border:1px solid #2e2c29;color:#f0ede8;border-radius:8px;padding:0.65rem 0.9rem;font-size:0.9rem;font-family:'DM Sans',sans-serif" onkeydown="if(event.key==='Enter') salvarNovaSenha()">
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end">
+      <button onclick="fecharModalSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #2e2c29;background:#242220;color:#f0ede8;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">Cancelar</button>
+      <button onclick="salvarNovaSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:none;background:#f5a623;color:#000;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">💾 Salvar Nova Senha</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ===================== STATE =====================
@@ -1135,8 +1096,8 @@ window.state = {
   perdas: [],
   custosFixos: [],
   editingFichaId: null
-}
-let state = window.state;;
+};
+let state = window.state;
 
 // ===================== INITIAL DATA (from spreadsheet) =====================
 const defaultInsumos = [
@@ -1226,7 +1187,6 @@ const defaultPerdas = [
   { nome: 'COSTELA (Blend)',           kgCompra: 1,   valorKg: 30,   kgCozido: 0.68,perdaKg: 0.32, perdaPct: 0.32,   valorKgCozido: 44.118, valor100g: 4.412 },
 ];
 
-// initApp é chamado pelo módulo Firebase após carregar os dados
 window.initApp = function(dadosFirebase) {
   if (dadosFirebase) {
     state.insumos     = dadosFirebase.insumos     || defaultInsumos;
@@ -1239,22 +1199,19 @@ window.initApp = function(dadosFirebase) {
     state.perdas      = defaultPerdas;
     state.custosFixos = defaultCustosFixos;
   }
-  // Firebase sempre configurado (credenciais fixas no arquivo)
-  const elModoLocal = document.getElementById('status-firebase');
-  if (elModoLocal) elModoLocal.style.display = 'none';
   renderAll();
   calcPerda();
   calcDespFat();
 }
 
 function init() {
-  // Fallback caso o módulo Firebase ainda não tenha carregado
   if (window._dadosIniciais !== undefined) {
     window.initApp(window._dadosIniciais);
+  } else {
+    calcPerda();
+    calcDespFat();
   }
-  // Se _dadosIniciais ainda não definido, o DOMContentLoaded do módulo vai chamar initApp
 }
-
 function save() {
   const dados = {
     insumos: state.insumos,
@@ -1264,8 +1221,6 @@ function save() {
   };
   if (typeof window.saveToFirebase === 'function') {
     window.saveToFirebase(dados);
-  } else {
-    localStorage.setItem('planilha_dados', JSON.stringify(dados));
   }
 }
 
@@ -1987,37 +1942,8 @@ function addItemCusto() {
 }
 
 // ===================== BOOTSTRAP =====================
-// A inicialização é feita pelo módulo Firebase via window.initApp()
-// Se o módulo já executou antes deste script (raro), chama init() agora
-if (window._dadosIniciais !== undefined) {
-  init();
-} else {
-  // Garante que calcPerda e calcDespFat rodem para mostrar valores iniciais nos campos
-  calcPerda();
-  calcDespFat();
-}
+if (window._dadosIniciais !== undefined) { init(); } else { calcPerda(); calcDespFat(); }
 </script>
 
-
-<!-- MODAL ALTERAR SENHA CLIENTE -->
-<div class="modal-overlay" id="modal-alterar-senha" style="z-index:9999;position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:90%;max-width:440px">
-    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem">🔑 Alterar Senha do Cliente</h3>
-    <p style="color:var(--text2);font-size:0.88rem;margin-bottom:1.25rem">Cliente: <strong id="modal-senha-nome" style="color:var(--accent)"></strong></p>
-    <input type="hidden" id="modal-senha-uid">
-    <div id="modal-senha-erro" style="display:none;background:rgba(232,68,26,0.1);border:1px solid rgba(232,68,26,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--red)"></div>
-    <div id="modal-senha-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.85rem;color:var(--green)"></div>
-    <div style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:1.5rem">
-      <label style="font-size:0.8rem;color:var(--text2);font-weight:500">Nova Senha</label>
-      <input type="password" id="modal-senha-nova" placeholder="Mínimo 6 caracteres" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:0.65rem 0.9rem;font-size:0.9rem" onkeydown="if(event.key==='Enter') salvarNovaSenha()">
-    </div>
-    <div style="display:flex;gap:0.75rem;justify-content:flex-end">
-      <button onclick="fecharModalSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">Cancelar</button>
-      <button onclick="salvarNovaSenha()" style="padding:0.65rem 1.25rem;border-radius:8px;border:none;background:var(--accent);color:#000;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;font-size:0.88rem">💾 Salvar Nova Senha</button>
-    </div>
-  </div>
-</div>
-
-
-
+</body>
 </html>
