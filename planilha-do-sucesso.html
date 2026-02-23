@@ -9,7 +9,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword as fbUpdatePassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword as fbUpdatePassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCPssE8M_MWTCUmn25T7r9Amg1QGl8H73o",
@@ -76,6 +76,28 @@
 
   window.fazerLogout = async function() { await signOut(auth); };
 
+  window.esqueceuSenha = async function() {
+    const email = document.getElementById("login-email").value.trim();
+    const okEl  = document.getElementById("reset-ok");
+    const erroEl = document.getElementById("login-erro");
+    erroEl.style.display = "none";
+    okEl.style.display = "none";
+    if (!email) {
+      erroEl.textContent = "Digite seu e-mail acima antes de clicar em Esqueci minha senha.";
+      erroEl.style.display = "block";
+      document.getElementById("login-email").focus();
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      okEl.textContent = "✅ E-mail de redefinição enviado para " + email + ". Verifique sua caixa de entrada!";
+      okEl.style.display = "block";
+    } catch(e) {
+      erroEl.textContent = "Erro ao enviar e-mail. Verifique se o endereço está correto.";
+      erroEl.style.display = "block";
+    }
+  };
+
   // ---- CRIAR CLIENTE ----
   window.criarCliente = async function() {
     const nome = document.getElementById("admin-nome").value.trim();
@@ -122,12 +144,22 @@
           <td>${data}</td>
           <td style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn btn-secondary btn-sm" onclick="abrirModalSenha('${cl.uid}', '${cl.nome || cl.email}')">🔑 Alterar Senha</button>
+            <button class="btn btn-secondary btn-sm" onclick="enviarEmailSenha('${cl.email}')">📧 Enviar Email de Senha</button>
             <button class="btn btn-danger btn-sm" onclick="deletarCliente('${cl.uid}', '${cl.email}')">Remover</button>
           </td>
         </tr>`;
       }).join("");
     } catch(e) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--red)">Erro ao carregar clientes.</td></tr>';
+    }
+  };
+
+  window.enviarEmailSenha = async function(email) {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("✅ E-mail de redefinição de senha enviado para:\n" + email);
+    } catch(e) {
+      alert("Erro ao enviar e-mail: " + e.message);
     }
   };
 
@@ -351,6 +383,12 @@ function voltarListaClientes() {
 function filtrarClientesSuporte(v) {
   if (window.filtrarClientesSuporte) window.filtrarClientesSuporte(v);
 }
+function enviarEmailSenha(email) {
+  if (window.enviarEmailSenha) window.enviarEmailSenha(email);
+}
+function esqueceuSenha() {
+  if (window.esqueceuSenha) window.esqueceuSenha();
+}
 </script>
 <style>
   :root {
@@ -568,6 +606,8 @@ function filtrarClientesSuporte(v) {
           <label for="lembrar-email" style="font-size:0.82rem;color:#a09b93;cursor:pointer;margin:0">Lembrar meu e-mail</label>
         </div>
         <button class="btn btn-primary" style="width:100%;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
+        <div id="reset-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem;font-size:0.85rem;color:#4caf82;text-align:center;margin-top:0.5rem"></div>
+        <button onclick="esqueceuSenha()" style="background:none;border:none;color:#a09b93;font-size:0.82rem;cursor:pointer;text-decoration:underline;width:100%;margin-top:0.5rem;font-family:'DM Sans',sans-serif">Esqueci minha senha</button>
       </div>
     </div>
     <p style="text-align:center;margin-top:1.5rem;font-size:0.78rem;color:#6b6560">Planilha do Sucesso © 2025</p>
@@ -1223,8 +1263,12 @@ function fmt(v) { return 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFraction
 function pct(v) { return ((v||0)*100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
 
 function getValorGrama(insumo) {
-  // valor por grama = valorKgCozido / conversao
-  return insumo.valorKgCozido / insumo.conversao;
+  // valor por grama = valorKgCozido / 1000 (sempre baseado no preço por kg)
+  if (insumo.medida === 'UN') {
+    // Para unidades: valorKgCozido já é o preço por unidade
+    return insumo.valorKgCozido;
+  }
+  return insumo.valorKgCozido / 1000;
 }
 
 function calcCustoFicha(ficha) {
@@ -1522,7 +1566,7 @@ function renderFichas() {
                 <td><strong>${ins.nome}</strong></td>
                 <td><span class="tag">${ins.medida}</span></td>
                 <td>${ing.qtdG}${unidade}</td>
-                <td style="color:var(--text2)">${fmt(getValorGrama(ins))}/g</td>
+                <td style="color:var(--text2)">${fmt(getValorGrama(ins) * 100)}/100g</td>
                 <td style="color:var(--accent);font-weight:600">${fmt(custo_ing)}</td>
                 <td>
                   <div style="display:flex;align-items:center;gap:0.5rem">
