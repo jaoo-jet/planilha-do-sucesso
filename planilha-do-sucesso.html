@@ -85,10 +85,13 @@
         // Aplica na tela de login
         const banner = document.getElementById("login-buy-banner");
         const linkEl = document.getElementById("login-buy-link");
-        if (d.ativo && d.link) {
+        // Se tiver config salva, aplica. Se ativo=false, esconde
+        if (!d.ativo) {
+          if (banner) banner.style.display = "none";
+        } else {
           if (banner) banner.style.display = "block";
           if (linkEl) {
-            linkEl.href = d.link;
+            linkEl.href = d.link || "https://pay.kiwify.com.br/34AVZ5k";
             linkEl.textContent = d.texto || "🛒 Comprar Planilha do Sucesso";
           }
         }
@@ -669,7 +672,7 @@ function salvarConfigCompra() {
         <button onclick="esqueceuSenha()" style="background:none;border:none;color:#a09b93;font-size:0.82rem;cursor:pointer;text-decoration:underline;width:100%;margin-top:0.5rem;font-family:'DM Sans',sans-serif">Esqueci minha senha</button>
       </div>
     </div>
-    <div id="login-buy-banner" style="margin-top:1.5rem;padding:1rem;background:linear-gradient(135deg,rgba(245,166,35,0.12),rgba(245,166,35,0.05));border:1px solid rgba(245,166,35,0.3);border-radius:12px;text-align:center;display:none">
+    <div id="login-buy-banner" style="margin-top:1.5rem;padding:1rem;background:linear-gradient(135deg,rgba(245,166,35,0.12),rgba(245,166,35,0.05));border:1px solid rgba(245,166,35,0.3);border-radius:12px;text-align:center;display:block">
       <div style="font-size:0.8rem;color:#a09b93;margin-bottom:0.5rem">Ainda não tem acesso?</div>
       <a id="login-buy-link" href="https://pay.kiwify.com.br/34AVZ5k" target="_blank"
          style="display:inline-block;background:#f5a623;color:#0f0e0d;font-weight:700;font-size:0.9rem;padding:0.6rem 1.5rem;border-radius:8px;text-decoration:none;font-family:'Syne',sans-serif">
@@ -720,7 +723,7 @@ function salvarConfigCompra() {
         </div>
         <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem">
           <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;cursor:pointer">
-            <input type="checkbox" id="suporte-buy-ativo" style="width:16px;height:16px;accent-color:#f5a623"> Exibir botão na tela de login
+            <input type="checkbox" id="suporte-buy-ativo" style="width:16px;height:16px;accent-color:#f5a623" checked> Exibir botão na tela de login
           </label>
           <button class="btn btn-primary" onclick="salvarConfigCompra()">💾 Salvar</button>
           <span id="compra-salvo-ok" style="font-size:0.82rem;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Salvo!</span>
