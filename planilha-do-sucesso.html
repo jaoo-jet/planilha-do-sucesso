@@ -82,15 +82,21 @@
     const btnEl = document.getElementById("btn-login");
     erroEl.style.display = "none";
     btnEl.textContent = "Entrando..."; btnEl.disabled = true;
-    // Salvar ou remover e-mail do localStorage
+    // Salvar ou remover e-mail e senha do localStorage
     if (lembrar) {
       localStorage.setItem("login_email_salvo", email);
+      localStorage.setItem("login_senha_salva", senha);
       localStorage.setItem("login_lembrar", "sim");
     } else {
       localStorage.removeItem("login_email_salvo");
+      localStorage.removeItem("login_senha_salva");
       localStorage.removeItem("login_lembrar");
     }
     try {
+      // Se marcou lembrar: persistência LOCAL (fica logado ao fechar o app)
+      // Se não marcou: SESSION (desloga ao fechar o navegador)
+      const { browserLocalPersistence, browserSessionPersistence, setPersistence } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+      await setPersistence(auth, lembrar ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, senha);
     } catch(e) {
       erroEl.textContent = "E-mail ou senha incorretos. Tente novamente.";
@@ -530,8 +536,9 @@ window.carregarClientesSuporte = async function() {
       const senhaEl    = document.getElementById("login-senha");
       const erroEl     = document.getElementById("login-erro");
       const lembrarEl  = document.getElementById("lembrar-email");
+      const senhaSalva = localStorage.getItem("login_senha_salva") || "";
       if (emailEl) emailEl.value = lembrar && emailSalvo ? emailSalvo : "";
-      if (senhaEl) senhaEl.value = "";
+      if (senhaEl) senhaEl.value = lembrar && senhaSalva ? senhaSalva : "";
       if (erroEl)  erroEl.style.display = "none";
       if (lembrarEl) lembrarEl.checked = lembrar;
       // Focar no campo correto
@@ -907,7 +914,7 @@ header { padding-top: max(0px, env(safe-area-inset-top)); }
         <div class="form-group"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
         <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem">
           <input type="checkbox" id="lembrar-email" style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer">
-          <label for="lembrar-email" style="font-size:0.82rem;color:#a09b93;cursor:pointer;margin:0">Lembrar meu e-mail</label>
+          <label for="lembrar-email" style="font-size:0.82rem;color:#a09b93;cursor:pointer;margin:0">Lembrar e-mail e senha / Manter conectado e-mail</label>
         </div>
         <button class="btn btn-primary" style="width:100%;padding:0.85rem" onclick="fazerLogin()" id="btn-login">Entrar</button>
         <div id="reset-ok" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.3);border-radius:8px;padding:0.75rem;font-size:0.85rem;color:#4caf82;text-align:center;margin-top:0.5rem"></div>
