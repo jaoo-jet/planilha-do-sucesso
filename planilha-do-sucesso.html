@@ -2,8 +2,33 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Planilha do Sucesso</title>
+
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#1a1917">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planilha do Sucesso">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Controle de custos para negócios alimentícios">
+
+<!-- PWA Icons (inline SVG como base64) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1917'/><text y='.9em' font-size='80' x='10'>🍽️</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1917'/><text y='.9em' font-size='80' x='10'>🍽️</text></svg>">
+
+<!-- PWA Manifest (inline) -->
+<link rel="manifest" href="data:application/manifest+json,{
+  %22name%22:%22Planilha do Sucesso%22,
+  %22short_name%22:%22Planilha%22,
+  %22description%22:%22Controle de custos para neg%C3%B3cios aliment%C3%ADcios%22,
+  %22start_url%22:%22.%22,
+  %22display%22:%22standalone%22,
+  %22background_color%22:%22%231a1917%22,
+  %22theme_color%22:%22%231a1917%22,
+  %22orientation%22:%22portrait%22,
+  %22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a1917'/><text y='.9em' font-size='80' x='10'>🍽️</text></svg>%22,%22sizes%22:%22any%22,%22type%22:%22image/svg+xml%22}]
+}">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
 <script type="module">
@@ -105,6 +130,152 @@
       }
     } catch(e) {}
   }
+
+  // ===== PLANILHA PADRÃO =====
+
+  // Renderiza tabela de insumos
+  function renderPadraoInsumos(insumos) {
+    const tbody = document.getElementById('padrao-insumos-body');
+    if (!tbody) return;
+    tbody.innerHTML = insumos.map((ins, i) => `
+      <tr>
+        <td><input value="${ins.nome}" style="width:130px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem" class="pi-nome"></td>
+        <td><select class="pi-medida" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem;font-size:0.8rem">
+          <option ${ins.medida==='KG'?'selected':''}>KG</option>
+          <option ${ins.medida==='UN'?'selected':''}>UN</option>
+          <option ${ins.medida==='ML'?'selected':''}>ML</option>
+        </select></td>
+        <td><input type="number" value="${ins.conversao}" class="pi-conv" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><input type="number" value="${ins.valorKg}" class="pi-vkg" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><select class="pi-perda" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem;font-size:0.8rem">
+          <option value="true" ${ins.temPerda?'selected':''}>Sim</option>
+          <option value="false" ${!ins.temPerda?'selected':''}>Não</option>
+        </select></td>
+        <td><input type="number" value="${ins.valorKgCozido}" class="pi-vcoz" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>
+      </tr>`).join('');
+  }
+
+  function renderPadraoFichas(fichas) {
+    const tbody = document.getElementById('padrao-fichas-body');
+    if (!tbody) return;
+    tbody.innerHTML = fichas.map((f, i) => `
+      <tr>
+        <td><input value="${f.nome}" class="pf-nome" style="width:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><input value="${f.categoria}" class="pf-cat" style="width:100px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td style="font-size:0.78rem;color:var(--text3)">${f.ingredientes ? f.ingredientes.length + ' ingredientes' : '—'}</td>
+        <td><input type="number" value="${f.precoCardapio||0}" class="pf-preco" style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>
+      </tr>`).join('');
+  }
+
+  function renderPadraoCustos(custos) {
+    const tbody = document.getElementById('padrao-custos-body');
+    if (!tbody) return;
+    tbody.innerHTML = custos.map((cf, i) => `
+      <tr>
+        <td><input value="${cf.nome}" class="pc-nome" style="width:200px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><input type="number" value="${cf.valor}" class="pc-valor" style="width:120px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>
+      </tr>`).join('');
+  }
+
+  // Carrega planilha padrão do Firebase (ou usa defaultData do código)
+  window.carregarPlanilhaPadrao = async function() {
+    try {
+      const snap = await getDoc(doc(db, "config", "planilhaPadrao"));
+      const dados = snap.exists() ? snap.data() : (typeof window.getDefaultData === 'function' ? window.getDefaultData() : null);
+      if (!dados) { alert('Nenhuma planilha padrão encontrada.'); return; }
+      renderPadraoInsumos(dados.insumos || []);
+      renderPadraoFichas(dados.fichas || []);
+      renderPadraoCustos(dados.custosFixos || []);
+    } catch(e) { alert('Erro ao carregar: ' + e.message); }
+  };
+
+  // Salva planilha padrão no Firebase /config/planilhaPadrao
+  window.salvarPlanilhaPadrao = async function() {
+    // Coleta insumos
+    const insumos = Array.from(document.querySelectorAll('#padrao-insumos-body tr')).map((tr, i) => ({
+      id: i + 1,
+      nome: tr.querySelector('.pi-nome')?.value.trim().toUpperCase() || '',
+      medida: tr.querySelector('.pi-medida')?.value || 'KG',
+      conversao: parseFloat(tr.querySelector('.pi-conv')?.value) || 1000,
+      valorKg: parseFloat(tr.querySelector('.pi-vkg')?.value) || 0,
+      temPerda: tr.querySelector('.pi-perda')?.value === 'true',
+      valorKgCozido: parseFloat(tr.querySelector('.pi-vcoz')?.value) || 0,
+    })).filter(i => i.nome);
+
+    // Coleta fichas (mantém ingredientes originais)
+    const fichasRows = Array.from(document.querySelectorAll('#padrao-fichas-body tr'));
+    const fichasSnap = await getDoc(doc(db, "config", "planilhaPadrao"));
+    const fichasExist = fichasSnap.exists() ? (fichasSnap.data().fichas || []) : (typeof window.getDefaultData === 'function' ? window.getDefaultData().fichas : []);
+    const fichas = fichasRows.map((tr, i) => {
+      const original = fichasExist[i] || {};
+      return {
+        id: i + 1,
+        nome: tr.querySelector('.pf-nome')?.value.trim() || '',
+        categoria: tr.querySelector('.pf-cat')?.value.trim() || '',
+        precoCardapio: parseFloat(tr.querySelector('.pf-preco')?.value) || 0,
+        ingredientes: original.ingredientes || [],
+      };
+    }).filter(f => f.nome);
+
+    // Coleta custos fixos
+    const custosFixos = Array.from(document.querySelectorAll('#padrao-custos-body tr')).map((tr, i) => ({
+      id: i + 1,
+      nome: tr.querySelector('.pc-nome')?.value.trim() || '',
+      valor: parseFloat(tr.querySelector('.pc-valor')?.value) || 0,
+    })).filter(cf => cf.nome);
+
+    try {
+      await setDoc(doc(db, "config", "planilhaPadrao"), { insumos, fichas, custosFixos, atualizadoEm: new Date().toISOString() });
+      const okEl = document.getElementById('padrao-salvo-ok');
+      if (okEl) { okEl.style.opacity = '1'; setTimeout(() => okEl.style.opacity = '0', 2500); }
+      alert(`✅ Planilha padrão salva!\n\n${insumos.length} insumos\n${fichas.length} fichas\n${custosFixos.length} custos fixos\n\nTodo cliente novo vai receber esses dados.`);
+    } catch(e) { alert('Erro ao salvar: ' + e.message); }
+  };
+
+  window.addPadraoInsumo = function() {
+    const tbody = document.getElementById('padrao-insumos-body');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="NOVO INSUMO" class="pi-nome" style="width:130px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><select class="pi-medida" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem;font-size:0.8rem"><option>KG</option><option>UN</option><option>ML</option></select></td>
+      <td><input type="number" value="1000" class="pi-conv" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><input type="number" value="0" class="pi-vkg" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><select class="pi-perda" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem;font-size:0.8rem"><option value="false">Não</option><option value="true">Sim</option></select></td>
+      <td><input type="number" value="0" class="pi-vcoz" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>`;
+    tbody.appendChild(tr);
+  };
+
+  window.addPadraoFicha = function() {
+    const tbody = document.getElementById('padrao-fichas-body');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="NOVA FICHA" class="pf-nome" style="width:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><input value="Outro" class="pf-cat" style="width:100px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td style="font-size:0.78rem;color:var(--text3)">0 ingredientes</td>
+      <td><input type="number" value="0" class="pf-preco" style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>`;
+    tbody.appendChild(tr);
+  };
+
+  window.addPadraoCusto = function() {
+    const tbody = document.getElementById('padrao-custos-body');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="Nova Despesa" class="pc-nome" style="width:200px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><input type="number" value="0" class="pc-valor" style="width:120px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>`;
+    tbody.appendChild(tr);
+  };
+
+  // Auto-carrega ao entrar no suporte
+  window.addEventListener('suporteLogado', () => window.carregarPlanilhaPadrao && window.carregarPlanilhaPadrao());
 
   window.salvarConfigCompra = async function() {
     const link  = document.getElementById("suporte-buy-link").value.trim();
@@ -253,7 +424,14 @@
   // ---- CARREGAR CLIENTES (suporte) ----
   let todosClientesSuporte = [];
 
-  window.carregarClientesSuporte = async function() {
+  window.carregarPlanilhaPadraoAuto = async function() {
+  // Auto-carrega ao entrar no painel suporte
+  if (typeof window.carregarPlanilhaPadrao === 'function') {
+    await window.carregarPlanilhaPadrao();
+  }
+};
+
+window.carregarClientesSuporte = async function() {
     const tbody = document.getElementById("suporte-clientes-table");
     try {
       const snap = await getDocs(collection(db, "clientes"));
@@ -375,6 +553,7 @@
 
     if (user.email === SUPORTE_EMAIL) {
       document.getElementById("suporte-screen").style.display = "block";
+    if (typeof window.carregarPlanilhaPadraoAuto === 'function') window.carregarPlanilhaPadraoAuto();
       carregarClientesSuporte();
       return;
     }
@@ -397,8 +576,8 @@
     let dados = snap.exists() ? snap.data() : null;
 
     // Primeiro acesso: salva os dados padrão automaticamente
-    if (!dados && typeof window.getDefaultData === "function") {
-      dados = window.getDefaultData();
+    if (!dados && typeof window.getDefaultDataAsync === "function") {
+      dados = await window.getDefaultDataAsync(); // busca do Firebase /config/planilhaPadrao
       try {
         await setDoc(doc(db, "clientes", user.uid, "dados", "planilha"), dados);
         console.log("✅ Dados padrão salvos para novo cliente:", user.email);
@@ -450,6 +629,20 @@ function esqueceuSenha() {
 }
 function salvarConfigCompra() {
   if (window.salvarConfigCompra) window.salvarConfigCompra();
+}
+function carregarPlanilhaPadrao() { if (window.carregarPlanilhaPadrao) window.carregarPlanilhaPadrao(); }
+function salvarPlanilhaPadrao()   { if (window.salvarPlanilhaPadrao)   window.salvarPlanilhaPadrao();   }
+function addPadraoInsumo()        { if (window.addPadraoInsumo)        window.addPadraoInsumo();        }
+function addPadraoFicha()         { if (window.addPadraoFicha)         window.addPadraoFicha();         }
+function addPadraoCusto()         { if (window.addPadraoCusto)         window.addPadraoCusto();         }
+function removePadraoRow(btn)     { btn.closest('tr').remove(); }
+function showPadraoTab(tab, btn) {
+  document.querySelectorAll('[id^="padrao-tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('padrao-tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.padrao-tab').forEach(b => {
+    b.className = 'btn btn-secondary btn-sm padrao-tab';
+  });
+  btn.className = 'btn btn-primary btn-sm padrao-tab active';
 }
 </script>
 <style>
@@ -647,6 +840,55 @@ function salvarConfigCompra() {
   .highlight-row td { background: rgba(245,166,35,0.06) !important; }
   .profit-positive { color: var(--green); }
   .profit-negative { color: var(--red); }
+
+/* ===== PWA / MOBILE ===== */
+@media (max-width: 768px) {
+  header { padding: 0 1rem; height: 56px; overflow-x: auto; }
+  header nav { gap: 0.25rem; }
+  header nav button { font-size: 0.72rem; padding: 0.35rem 0.6rem; white-space: nowrap; }
+  .page { padding: 0 !important; }
+  .section-header { padding: 1rem; }
+  .section-header.flex-between { flex-wrap: wrap; gap: 0.75rem; }
+  .cards-grid { grid-template-columns: 1fr 1fr !important; gap: 0.75rem; padding: 0 1rem; }
+  .panel { border-radius: 10px; margin: 0 0.75rem 1rem; }
+  .panel-header { padding: 0.85rem 1rem; flex-wrap: wrap; gap: 0.5rem; }
+  table { font-size: 0.75rem; }
+  th, td { padding: 0.5rem 0.65rem; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .btn-sm { font-size: 0.7rem; padding: 0.3rem 0.55rem; }
+  div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+  div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  #login-screen > div { padding: 1.25rem; }
+}
+
+/* Safe area para iPhone com notch */
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+header { padding-top: max(0px, env(safe-area-inset-top)); }
+
+/* Botão instalar PWA */
+#pwa-install-banner {
+  display: none;
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f5a623;
+  color: #0f0e0d;
+  padding: 0.75rem 1.5rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  z-index: 9999;
+  box-shadow: 0 4px 20px rgba(245,166,35,0.5);
+  border: none;
+  white-space: nowrap;
+  animation: bounce 2s infinite;
+}
+@keyframes bounce {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-6px); }
+}
 </style>
 </head>
 <body>
@@ -728,6 +970,73 @@ function salvarConfigCompra() {
           <button class="btn btn-primary" onclick="salvarConfigCompra()">💾 Salvar</button>
           <span id="compra-salvo-ok" style="font-size:0.82rem;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Salvo!</span>
         </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.5rem">
+      <div class="panel-header" style="justify-content:space-between">
+        <h3>📋 Planilha Padrão</h3>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <button class="btn btn-secondary btn-sm" onclick="carregarPlanilhaPadrao()">🔄 Carregar Atual</button>
+          <button class="btn btn-primary btn-sm" onclick="salvarPlanilhaPadrao()">💾 Salvar como Padrão</button>
+          <span id="padrao-salvo-ok" style="font-size:0.82rem;color:var(--green);opacity:0;transition:opacity 0.4s">✓ Salvo!</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:1.25rem">
+          Edite os dados abaixo e clique em <strong>Salvar como Padrão</strong>. 
+          Todo cliente novo que se cadastrar receberá automaticamente esses dados no primeiro login.
+        </p>
+
+        <!-- TABS -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border);padding-bottom:0.75rem">
+          <button class="btn btn-primary btn-sm padrao-tab active" onclick="showPadraoTab('insumos',this)">🧂 Insumos</button>
+          <button class="btn btn-secondary btn-sm padrao-tab" onclick="showPadraoTab('fichas',this)">📋 Fichas</button>
+          <button class="btn btn-secondary btn-sm padrao-tab" onclick="showPadraoTab('custos',this)">💰 Custos Fixos</button>
+        </div>
+
+        <!-- TAB INSUMOS -->
+        <div id="padrao-tab-insumos">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+            <span style="font-size:0.82rem;color:var(--text2)">Lista de insumos padrão</span>
+            <button class="btn btn-secondary btn-sm" onclick="addPadraoInsumo()">+ Adicionar</button>
+          </div>
+          <div style="max-height:300px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Nome</th><th>Medida</th><th>Conversão</th><th>Valor/kg Cru</th><th>Perda?</th><th>Valor/kg Cozido</th><th></th></tr></thead>
+              <tbody id="padrao-insumos-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB FICHAS -->
+        <div id="padrao-tab-fichas" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+            <span style="font-size:0.82rem;color:var(--text2)">Fichas técnicas padrão</span>
+            <button class="btn btn-secondary btn-sm" onclick="addPadraoFicha()">+ Adicionar</button>
+          </div>
+          <div style="max-height:300px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Nome</th><th>Categoria</th><th>Ingredientes</th><th>Preço Cardápio</th><th></th></tr></thead>
+              <tbody id="padrao-fichas-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB CUSTOS FIXOS -->
+        <div id="padrao-tab-custos" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+            <span style="font-size:0.82rem;color:var(--text2)">Custos fixos padrão</span>
+            <button class="btn btn-secondary btn-sm" onclick="addPadraoCusto()">+ Adicionar</button>
+          </div>
+          <div style="max-height:300px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Nome</th><th>Valor (R$)</th><th></th></tr></thead>
+              <tbody id="padrao-custos-body"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1297,6 +1606,23 @@ window.getDefaultData = function() {
     perdas:      JSON.parse(JSON.stringify(defaultPerdas)),
     custosFixos: JSON.parse(JSON.stringify(defaultCustosFixos)),
   };
+};
+
+// Busca planilha padrão do Firebase (prioridade) ou do código
+window.getDefaultDataAsync = async function() {
+  try {
+    const snap = await getDoc(doc(db, "config", "planilhaPadrao"));
+    if (snap.exists()) {
+      const d = snap.data();
+      return {
+        insumos:     d.insumos     || defaultInsumos,
+        fichas:      d.fichas      || defaultFichas,
+        perdas:      defaultPerdas,
+        custosFixos: d.custosFixos || defaultCustosFixos,
+      };
+    }
+  } catch(e) {}
+  return window.getDefaultData();
 };
 
 window.initApp = function(dadosFirebase) {
@@ -2172,5 +2498,69 @@ function addItemCusto() {
 if (window._dadosIniciais !== undefined) { init(); } else { calcPerda(); calcDespFat(); }
 </script>
 
+
+<!-- PWA Install Banner -->
+<button id="pwa-install-banner" onclick="installPWA()">📱 Instalar App no Celular</button>
+
+<script>
+// ===== PWA SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    // Inline service worker via blob
+    const swCode = `
+      const CACHE = 'planilha-sucesso-v1';
+      self.addEventListener('install', e => {
+        e.waitUntil(caches.open(CACHE).then(cache =>
+          cache.addAll([self.location.pathname])
+        ));
+      });
+      self.addEventListener('fetch', e => {
+        e.respondWith(
+          caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match(e.request)))
+        );
+      });
+    `;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).catch(() => {});
+  });
+}
+
+// ===== INSTALL PROMPT =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('pwa-install-banner').style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-install-banner').style.display = 'none';
+  deferredPrompt = null;
+});
+
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('pwa-install-banner').style.display = 'none';
+    });
+  }
+}
+
+// iOS - mostrar instrução manual
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone;
+if (isIOS && !isStandalone) {
+  const banner = document.getElementById('pwa-install-banner');
+  banner.style.display = 'block';
+  banner.textContent = '📱 Toque em ⎋ Compartilhar → Adicionar à Tela de Início';
+  banner.style.fontSize = '0.75rem';
+  banner.style.padding = '0.65rem 1.2rem';
+  banner.onclick = null;
+  setTimeout(() => banner.style.display = 'none', 8000);
+}
+</script>
 </body>
 </html>
