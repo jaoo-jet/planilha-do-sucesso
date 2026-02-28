@@ -464,10 +464,29 @@ window.carregarClientesSuporte = async function() {
         <td><strong>${cl.nome || "—"}</strong></td>
         <td style="color:var(--text2)">${cl.email}</td>
         <td style="color:var(--text2)">${data}</td>
-        <td><button class="btn btn-primary btn-sm" onclick="abrirClienteSuporte('${cl.uid}', '${cl.nome || cl.email}', '${cl.email}')">📂 Abrir Planilha</button></td>
+        <td style="display:flex;gap:0.5rem">
+          <button class="btn btn-primary btn-sm" onclick="abrirClienteSuporte('${cl.uid}', '${cl.nome || cl.email}', '${cl.email}')">📂 Abrir Planilha</button>
+          <button class="btn btn-danger btn-sm" onclick="excluirClienteSuporte('${cl.uid}', '${cl.email}')">🗑️ Excluir</button>
+        </td>
       </tr>`;
     }).join("");
   }
+
+  window.excluirClienteSuporte = async function(uid, email) {
+    if (!confirm(`Tem certeza que deseja excluir o cliente:\n${email}\n\nEssa ação não pode ser desfeita!`)) return;
+    try {
+      // Delete from Firestore
+      const subcols = ['planilha'];
+      for (const sub of subcols) {
+        try { await deleteDoc(doc(db, "clientes", uid, "dados", sub)); } catch(e) {}
+      }
+      await deleteDoc(doc(db, "clientes", uid));
+      alert(`✅ Cliente ${email} excluído com sucesso!`);
+      window.carregarClientesSuporte();
+    } catch(e) {
+      alert("Erro ao excluir cliente: " + e.message);
+    }
+  };
 
   window.filtrarClientesSuporte = function(termo) {
     const filtrados = todosClientesSuporte.filter(cl =>
@@ -633,6 +652,9 @@ function enviarEmailSenha(email) {
 }
 function esqueceuSenha() {
   if (window.esqueceuSenha) window.esqueceuSenha();
+}
+function excluirClienteSuporte(uid, email) {
+  if (window.excluirClienteSuporte) window.excluirClienteSuporte(uid, email);
 }
 function salvarConfigCompra() {
   if (window.salvarConfigCompra) window.salvarConfigCompra();
