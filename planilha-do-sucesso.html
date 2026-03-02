@@ -162,18 +162,112 @@
       </tr>`).join('');
   }
 
+  // Armazena ingredientes em memória por ficha (para edição)
+  window._padraoFichasIngredientes = {};
+
   function renderPadraoFichas(fichas) {
     const tbody = document.getElementById('padrao-fichas-body');
     if (!tbody) return;
+    // Salva ingredientes em memória
+    fichas.forEach((f, i) => { window._padraoFichasIngredientes[i] = f.ingredientes ? JSON.parse(JSON.stringify(f.ingredientes)) : []; });
     tbody.innerHTML = fichas.map((f, i) => `
-      <tr>
-        <td><input value="${f.nome}" class="pf-nome" style="width:140px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
-        <td><input value="${f.categoria}" class="pf-cat" style="width:100px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
-        <td style="font-size:0.78rem;color:var(--text3)">${f.ingredientes ? f.ingredientes.length + ' ingredientes' : '—'}</td>
-        <td><input type="number" value="${f.precoCardapio||0}" class="pf-preco" style="width:80px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+      <tr data-ficha-idx="${i}">
+        <td><input value="${f.nome}" class="pf-nome" style="width:130px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
+        <td>
+          <select class="pf-cat" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem;width:110px">
+            <option value="Pastel" ${f.categoria==='Pastel'?'selected':''}>🥟 Pastel</option>
+            <option value="Pizza" ${f.categoria==='Pizza'?'selected':''}>🍕 Pizza</option>
+            <option value="Açaí" ${f.categoria==='Açaí'?'selected':''}>🍇 Açaí</option>
+            <option value="Lanche" ${f.categoria==='Lanche'?'selected':''}>🍔 Lanche</option>
+            <option value="Bebida" ${f.categoria==='Bebida'?'selected':''}>🥤 Bebida</option>
+            <option value="Outro" ${(f.categoria&&!['Pastel','Pizza','Açaí','Lanche','Bebida'].includes(f.categoria))?'selected':''}>📦 Outro</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="abrirIngredientesPadrao(${i}, this)" style="font-size:0.75rem;padding:0.25rem 0.5rem">
+            🧂 ${f.ingredientes ? f.ingredientes.length : 0} ingredientes ✏️
+          </button>
+        </td>
+        <td><input type="number" value="${f.precoCardapio||0}" class="pf-preco" style="width:75px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.8rem"></td>
         <td><button class="btn btn-danger btn-sm" onclick="removePadraoRow(this)">×</button></td>
       </tr>`).join('');
   }
+
+  window.abrirIngredientesPadrao = function(fichaIdx, btn) {
+    // Toggle inline ingredients editor
+    const tr = btn.closest('tr');
+    const existingEditor = tr.nextElementSibling;
+    if (existingEditor && existingEditor.classList.contains('ing-editor-row')) {
+      existingEditor.remove();
+      return;
+    }
+    const ings = window._padraoFichasIngredientes[fichaIdx] || [];
+    // Get available insumos for dropdown
+    const insumos = typeof defaultInsumos !== 'undefined' ? defaultInsumos : [];
+    const insumoOptions = insumos.map(ins => `<option value="${ins.id}">${ins.nome}</option>`).join('');
+    
+    const editorRow = document.createElement('tr');
+    editorRow.className = 'ing-editor-row';
+    editorRow.style.cssText = 'background:var(--bg2)';
+    editorRow.innerHTML = `
+      <td colspan="5" style="padding:0.75rem 1rem">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--accent);margin-bottom:0.5rem">🧂 Ingredientes da ficha</div>
+        <table style="width:100%;border-collapse:collapse" id="ing-table-${fichaIdx}">
+          <thead><tr>
+            <th style="font-size:0.75rem;color:var(--text2);text-align:left;padding:0.25rem 0.5rem">Insumo</th>
+            <th style="font-size:0.75rem;color:var(--text2);text-align:left;padding:0.25rem 0.5rem">Qtd (g)</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="ing-body-${fichaIdx}">
+            ${ings.map((ing, ii) => `
+              <tr>
+                <td style="padding:0.2rem 0.4rem"><select class="ing-id" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.25rem;font-size:0.78rem;width:160px">
+                  <option value="">— Selecionar —</option>
+                  ${insumos.map(ins => `<option value="${ins.id}" ${ins.id===ing.insumoId?'selected':''}>${ins.nome}</option>`).join('')}
+                </select></td>
+                <td style="padding:0.2rem 0.4rem"><input type="number" value="${ing.qtdG}" class="ing-qtd" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.78rem"></td>
+                <td style="padding:0.2rem 0.4rem"><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove();salvarIngsPadrao(${fichaIdx})" style="font-size:0.72rem;padding:0.2rem 0.4rem">×</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+          <button class="btn btn-secondary btn-sm" onclick="addIngPadrao(${fichaIdx})" style="font-size:0.78rem">+ Adicionar</button>
+          <button class="btn btn-primary btn-sm" onclick="salvarIngsPadrao(${fichaIdx});this.closest('.ing-editor-row').remove()" style="font-size:0.78rem">✅ Salvar</button>
+        </div>
+      </td>`;
+    tr.insertAdjacentElement('afterend', editorRow);
+  };
+
+  window.addIngPadrao = function(fichaIdx) {
+    const insumos = typeof defaultInsumos !== 'undefined' ? defaultInsumos : [];
+    const tbody = document.getElementById('ing-body-' + fichaIdx);
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:0.2rem 0.4rem"><select class="ing-id" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.25rem;font-size:0.78rem;width:160px">
+        <option value="">— Selecionar —</option>
+        ${insumos.map(ins => `<option value="${ins.id}">${ins.nome}</option>`).join('')}
+      </select></td>
+      <td style="padding:0.2rem 0.4rem"><input type="number" value="100" class="ing-qtd" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.78rem"></td>
+      <td style="padding:0.2rem 0.4rem"><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove();salvarIngsPadrao(${fichaIdx})" style="font-size:0.72rem;padding:0.2rem 0.4rem">×</button></td>`;
+    tbody.appendChild(tr);
+  };
+
+  window.salvarIngsPadrao = function(fichaIdx) {
+    const tbody = document.getElementById('ing-body-' + fichaIdx);
+    if (!tbody) return;
+    const ings = Array.from(tbody.querySelectorAll('tr')).map(tr => ({
+      insumoId: parseInt(tr.querySelector('.ing-id')?.value) || 0,
+      qtdG: parseFloat(tr.querySelector('.ing-qtd')?.value) || 0,
+    })).filter(i => i.insumoId > 0);
+    window._padraoFichasIngredientes[fichaIdx] = ings;
+    // Update button count
+    const mainRow = document.querySelector(`tr[data-ficha-idx="${fichaIdx}"]`);
+    if (mainRow) {
+      const btn = mainRow.querySelector('button[onclick^="abrirIngredientesPadrao"]');
+      if (btn) btn.textContent = `🧂 ${ings.length} ingredientes ✏️`;
+    }
+  };
 
   function renderPadraoCustos(custos) {
     const tbody = document.getElementById('padrao-custos-body');
@@ -212,17 +306,15 @@
     })).filter(i => i.nome);
 
     // Coleta fichas (mantém ingredientes originais)
-    const fichasRows = Array.from(document.querySelectorAll('#padrao-fichas-body tr'));
-    const fichasSnap = await getDoc(doc(db, "config", "planilhaPadrao"));
-    const fichasExist = fichasSnap.exists() ? (fichasSnap.data().fichas || []) : (typeof window.getDefaultData === 'function' ? window.getDefaultData().fichas : []);
+    const fichasRows = Array.from(document.querySelectorAll('#padrao-fichas-body tr:not(.ing-editor-row)'));
     const fichas = fichasRows.map((tr, i) => {
-      const original = fichasExist[i] || {};
+      const fichaIdx = parseInt(tr.getAttribute('data-ficha-idx') ?? i);
       return {
         id: i + 1,
         nome: tr.querySelector('.pf-nome')?.value.trim() || '',
-        categoria: tr.querySelector('.pf-cat')?.value.trim() || '',
+        categoria: tr.querySelector('.pf-cat')?.value || 'Pastel',
         precoCardapio: parseFloat(tr.querySelector('.pf-preco')?.value) || 0,
-        ingredientes: original.ingredientes || [],
+        ingredientes: window._padraoFichasIngredientes[fichaIdx] || [],
       };
     }).filter(f => f.nome);
 
