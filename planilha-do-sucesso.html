@@ -55,6 +55,24 @@
   const auth2 = getAuth(app2);
 
   // ---- SALVAR/CARREGAR dados por usuário ----
+  window.usarClienteComoPadrao = async function() {
+    if (!window._dadosClienteSuporteAtual) { alert("Nenhum cliente aberto!"); return; }
+    const dados = window._dadosClienteSuporteAtual;
+    const nome = window._nomeClienteSuporteAtual || "este cliente";
+    if (!confirm(`Copiar todos os dados de "${nome}" como Planilha Padrão?\n\nTodo novo cliente que se cadastrar vai receber esses dados.`)) return;
+    try {
+      await setDoc(doc(db, "config", "planilhaPadrao"), {
+        insumos:     dados.insumos     || [],
+        fichas:      dados.fichas      || [],
+        custosFixos: dados.custosFixos || [],
+        perdas:      dados.perdas      || [],
+        atualizadoEm: new Date().toISOString(),
+        copiaDe: nome,
+      });
+      alert(`✅ Planilha Padrão atualizada com os dados de "${nome}"!\n\nTodo novo cliente vai receber esses dados.`);
+    } catch(e) { alert("Erro: " + e.message); }
+  };
+
   window.saveToFirebase = async function(dados) {
     const user = auth.currentUser;
     if (!user) return;
@@ -618,12 +636,31 @@ window.carregarClientesSuporte = async function() {
     document.getElementById("suporte-lista").style.display = "none";
     document.getElementById("suporte-app").style.display = "block";
     document.getElementById("btn-voltar-suporte").style.display = "inline-block";
+    document.getElementById("btn-usar-padrao").style.display = "inline-block";
 
     const appScreen = document.getElementById("app-screen");
     document.getElementById("suporte-app").appendChild(appScreen);
     appScreen.style.display = "block";
 
-    window.saveToFirebase = async function(dados) {
+    window.usarClienteComoPadrao = async function() {
+    if (!window._dadosClienteSuporteAtual) { alert("Nenhum cliente aberto!"); return; }
+    const dados = window._dadosClienteSuporteAtual;
+    const nome = window._nomeClienteSuporteAtual || "este cliente";
+    if (!confirm(`Copiar todos os dados de "${nome}" como Planilha Padrão?\n\nTodo novo cliente que se cadastrar vai receber esses dados.`)) return;
+    try {
+      await setDoc(doc(db, "config", "planilhaPadrao"), {
+        insumos:     dados.insumos     || [],
+        fichas:      dados.fichas      || [],
+        custosFixos: dados.custosFixos || [],
+        perdas:      dados.perdas      || [],
+        atualizadoEm: new Date().toISOString(),
+        copiaDe: nome,
+      });
+      alert(`✅ Planilha Padrão atualizada com os dados de "${nome}"!\n\nTodo novo cliente vai receber esses dados.`);
+    } catch(e) { alert("Erro: " + e.message); }
+  };
+
+  window.saveToFirebase = async function(dados) {
       try {
         await setDoc(doc(db, "clientes", uid, "dados", "planilha"), dados);
         mostrarStatusSalvo();
@@ -643,6 +680,7 @@ window.carregarClientesSuporte = async function() {
   };
 
   window.voltarListaClientes = function() {
+    document.getElementById("btn-usar-padrao").style.display = "none";
     document.getElementById("suporte-lista").style.display = "block";
     document.getElementById("suporte-app").style.display = "none";
     document.getElementById("btn-voltar-suporte").style.display = "none";
@@ -766,6 +804,9 @@ function enviarEmailSenha(email) {
 }
 function esqueceuSenha() {
   if (window.esqueceuSenha) window.esqueceuSenha();
+}
+function usarClienteComoPadrao() {
+  if (window.usarClienteComoPadrao) window.usarClienteComoPadrao();
 }
 function excluirClienteSuporte(uid, email) {
   if (window.excluirClienteSuporte) window.excluirClienteSuporte(uid, email);
@@ -1152,6 +1193,7 @@ header { padding-top: max(0px, env(safe-area-inset-top)); }
     </div>
     <div style="display:flex;align-items:center;gap:1rem">
       <button class="btn btn-secondary btn-sm" id="btn-voltar-suporte" onclick="voltarListaClientes()" style="display:none">← Voltar à lista</button>
+      <button class="btn btn-secondary btn-sm" id="btn-usar-padrao" onclick="usarClienteComoPadrao()" style="display:none;background:#8b5cf6;color:#fff;border-color:#8b5cf6">⭐ Usar como Padrão</button>
       <button class="btn btn-danger btn-sm" onclick="fazerLogout()">Sair</button>
     </div>
   </header>
